@@ -49,7 +49,6 @@ public class ModDataComponents {
                             .networkSynchronized(SketchData.STREAM_CODEC)
                             .build()
             );
-//test
     public static void register(IEventBus eventBus) {
         DATA_COMPONENT_TYPES.register(eventBus);
     }
