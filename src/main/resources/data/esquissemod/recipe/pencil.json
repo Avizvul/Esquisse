@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "tool",
+  "key": {
+    "W": {
+      "tag": "minecraft:planks"
+    },
+    "C": {
+      "tag": "minecraft:coals"
+    }
+  },
+  "pattern": [
+    "WCW",
+    "WCW",
+    " C "
+  ],
+  "result": {
+    "count": 1,
+    "id": "esquissemod:pencil"
+  }
+}
