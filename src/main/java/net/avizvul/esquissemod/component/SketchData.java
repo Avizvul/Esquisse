@@ -118,5 +118,18 @@ public class SketchData {
         }
         return true; // Все пиксели равны 0 (пусто)
     }
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        SketchData that = (SketchData) obj;
+        // Глубокое сравнение двумерного массива пикселей
+        return java.util.Arrays.deepEquals(this.pixels, that.pixels);
+    }
 
+    @Override
+    public int hashCode() {
+        // Глубокий хэш для двумерного массива
+        return java.util.Arrays.deepHashCode(this.pixels);
+    }
 }

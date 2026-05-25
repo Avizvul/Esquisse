@@ -64,18 +64,22 @@ public class EsquisseMod {
 
     private void registerPayloads(final RegisterPayloadHandlersEvent event) {
         final PayloadRegistrar registrar = event.registrar(MOD_ID);
-        // Регистрируем пакет для отправки ТОЛЬКО от клиента к серверу
+
+        // Создаем ОДИН экземпляр обработчика для всех пакетов этого мода
+        SketchbookPayloadHandler handler = new SketchbookPayloadHandler();
+
+        // Регистрируем пакет для сохранения рисунка
         registrar.playToServer(
                 SketchbookSavePayload.TYPE,
                 SketchbookSavePayload.STREAM_CODEC,
-                SketchbookPayloadHandler::handleData
+                handler::handleData
         );
 
+        // Регистрируем пакет для отрыва страницы
         registrar.playToServer(
                 TearPagePayload.TYPE,
                 TearPagePayload.STREAM_CODEC,
-                // Укажите здесь ваш обработчик. Скорее всего, он будет выглядеть так:
-                new SketchbookPayloadHandler()::handleTearPage
+                handler::handleTearPage
         );
     }
 

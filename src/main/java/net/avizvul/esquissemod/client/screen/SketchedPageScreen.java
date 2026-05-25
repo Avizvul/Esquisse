@@ -1,62 +1,104 @@
 package net.avizvul.esquissemod.client.screen;
 
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
 import net.avizvul.esquissemod.component.ModDataComponents;
 import net.avizvul.esquissemod.component.SketchData;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 
 public class SketchedPageScreen extends Screen {
-    // Ваша новая текстура GUI для оторванного листа
-    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("esquissemod", "textures/gui/sketched_page_gui.png"); // [8]
+
+    private static final net.minecraft.resources.ResourceLocation PAGE_TEX =
+            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID,
+                    "textures/gui/sketched_page_gui.png"
+            );
+
+    // --- ПРАВИЛЬНЫЕ РАЗМЕРЫ (Как в SketchbookScreen) ---
+    private final int canvasWidth = 63;
+    private final int canvasHeight = 96; // Высота должна быть больше ширины!
+    private final int scale = 3;
+    private final int resolutionMultiplier = 2;
 
     private byte[][] pixels;
-    private final int imageWidth = 256; // Замените на размер вашей текстуры GUI
-    private final int imageHeight = 256;
 
     public SketchedPageScreen(ItemStack stack) {
         super(Component.literal("Sketched Page"));
 
-        // Извлекаем рисунок из предмета [9]
+        // 1. ИЗВЛЕКАЕМ РИСУНОК ИЗ ПРЕДМЕТА
         SketchData data = stack.get(ModDataComponents.PAGE_DATA.get());
         if (data != null) {
-            // Замените числа на ваши реальные canvasWidth и canvasHeight с учетом множителя
-            this.pixels = data.toArray(64, 128);
+            // Обязательно передаем правильные прямоугольные размеры!
+            this.pixels = data.toArray(this.canvasWidth * this.resolutionMultiplier, this.canvasHeight * this.resolutionMultiplier);
+        } else {
+            this.pixels = new byte[this.canvasWidth * this.resolutionMultiplier][this.canvasHeight * this.resolutionMultiplier];
         }
     }
 
+    // --- РЕШЕНИЕ ПРОБЛЕМЫ 1: Убираем блюр и паузу ---
+    @Override
+    public boolean isPauseScreen() {
+        return false; // Чтобы одиночная игра не ставилась на паузу
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        // ВАЖНО: Оставляем этот метод АБСОЛЮТНО ПУСТЫМ!
+        // Мы не вызываем super.renderBackground(...), благодаря чему
+        // ванильный блюр и темный полупрозрачный фон не будут отрисовываться.
+    }
+
+    // --- РЕШЕНИЕ ПРОБЛЕМ 2 И 3: Правильные пропорции и циклы ---
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        // Рассчитываем физические размеры листа на экране (189x288 при scale=3)
+        int drawWidth = this.canvasWidth * this.scale;
+        int drawHeight = this.canvasHeight * this.scale;
 
-        int renderX = (this.width - this.imageWidth) / 2;
-        int renderY = (this.height - this.imageHeight) / 2;
+        // Центрируем лист ровно по центру экрана
+        int renderX = (this.width - drawWidth) / 2;
+        int renderY = (this.height - drawHeight) / 2;
 
-        // Рисуем фон (сам листок)
-        guiGraphics.blit(TEXTURE, renderX, renderY, 0, 0, this.imageWidth, this.imageHeight);
+        // 1. Отрисовка фона самой бумаги
+        // Используем вашу новую текстуру вместо сплошной заливки
+        guiGraphics.blit(PAGE_TEX, renderX, renderY, drawWidth, drawHeight,
+                0.0f, 0.0f, this.canvasWidth, this.canvasHeight, this.canvasWidth, this.canvasHeight
+        );
 
-        // Рисуем пиксели, если они есть
-        if (this.pixels != null) {
-            // Подставьте сюда ваши отступы для отрисовки пикселей холста,
-            // точно так же, как вы это делаете в SketchbookScreen!
-            int canvasX = renderX + 20;
-            int canvasY = renderY + 20;
+        // 2. Отрисовка пикселей рисунка
+        guiGraphics.pose().pushPose();
+        float resScale = 1.0f / this.resolutionMultiplier;
+        guiGraphics.pose().scale(resScale, resScale, 1.0f);
 
-            for (int x = 0; x < this.pixels.length; x++) {
-                for (int y = 0; y < this.pixels[x].length; y++) {
-                    if (this.pixels[x][y] != 0) {
-                        guiGraphics.fill(canvasX + x, canvasY + y, canvasX + x + 1, canvasY + y + 1, 0xFF000000); // Чёрный цвет
+        int scaledCanvasLeft = renderX * this.resolutionMultiplier;
+        int scaledCanvasTop = renderY * this.resolutionMultiplier;
+
+        // Проходимся двумя независимыми переменными: шириной (63) и высотой (96)
+        for (int x = 0; x < this.canvasWidth * this.resolutionMultiplier; x++) {
+            for (int y = 0; y < this.canvasHeight * this.resolutionMultiplier; y++) {
+                byte pixelValue = pixels[x][y];
+
+                if (pixelValue > 0) {
+                    int drawPixelX = scaledCanvasLeft + (x * this.scale);
+                    int drawPixelY = scaledCanvasTop + (y * this.scale);
+
+                    int pixelColor = 0xFF000000;
+                    if (pixelValue == 1) {
+                        pixelColor = 0xFFCCCCCC;
+                    } else if (pixelValue == 2) {
+                        pixelColor = 0xFF888888;
+                    } else if (pixelValue == 3) {
+                        pixelColor = 0xFF444444;
+                    } else if (pixelValue >= 4) {
+                        pixelColor = 0xFF111111;
                     }
+
+                    guiGraphics.fill(drawPixelX, drawPixelY, drawPixelX + this.scale, drawPixelY + this.scale, pixelColor);
                 }
             }
         }
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
-    }
+        guiGraphics.pose().popPose();
 
-    @Override
-    public boolean isPauseScreen() {
-        return false;
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 }

@@ -203,8 +203,14 @@ public class SketchbookScreen extends Screen {
 
         // --- ЗАЩИТА №2: Сохраняем текущую страницу ТОЛЬКО если она всё ещё существует (т.е. не была вырвана)
         if (this.currentPageIndex >= 0 && this.currentPageIndex < pages.size()) {
-            pages.set(this.currentPageIndex, SketchData.fromArray(this.pixels));
+            net.avizvul.esquissemod.component.SketchData data = net.avizvul.esquissemod.component.SketchData.fromArray(this.pixels);
+            pages.set(this.currentPageIndex, data);
             stack.set(ModDataComponents.SKETCHBOOK_PAGES.get(), pages); // локально обновляем предмет
+
+            // --- ИСПРАВЛЕНИЕ РАССИНХРОНА: Отправляем рисунок на сервер при перелистывании! ---
+            net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                    new SketchbookSavePayload(this.currentPageIndex, data, this.pencilPixelsUsed, this.eraserPixelsUsed)
+            );
         }
 
         // --- ЗАГРУЗКА НОВОЙ СТРАНИЦЫ ---
@@ -339,7 +345,7 @@ public class SketchbookScreen extends Screen {
         int blueZoneBottom = renderY + (this.canvasHeight * this.scale);
 
         // Если курсор мыши находится в пределах синей зоны
-        if (mouseX >= blueZoneLeft && mouseX <= blueZoneRight && mouseY >= blueZoneTop && mouseY <= blueZoneBottom) {
+        if (lMouseX >= blueZoneLeft && lMouseX <= blueZoneRight && lMouseY >= blueZoneTop && lMouseY <= blueZoneBottom) {
 
             // Настройки нашего пунктира
             int dashLength = 5; // Длина одного красного штриха в пикселях
@@ -677,7 +683,12 @@ public class SketchbookScreen extends Screen {
 
             // --- ИСПРАВЛЕНИЕ 1: Оборачиваем сырой массив пикселей в объект SketchData ---
             net.neoforged.neoforge.network.PacketDistributor.sendToServer(
-                    new SketchbookSavePayload(this.currentPageIndex, net.avizvul.esquissemod.component.SketchData.fromArray(this.pixels))
+                    new SketchbookSavePayload(
+                            this.currentPageIndex,                                                // 1: int (индекс страницы)
+                            net.avizvul.esquissemod.component.SketchData.fromArray(this.pixels),  // 2: SketchData (сам рисунок)
+                            this.pencilPixelsUsed,                                             // 3: int (ваша переменная пикселей карандаша)
+                            this.eraserPixelsUsed                                              // 4: int (ваша переменная пикселей ластика)
+                    )
             );
 
             // Отправляем пакет на отрыв (сервер уже будет знать о нашем рисунке!)
@@ -893,7 +904,7 @@ public class SketchbookScreen extends Screen {
 
         SketchData data = SketchData.fromArray(this.pixels);
         // Вы уже правильно передаете this.currentPageIndex в пакет!
-        PacketDistributor.sendToServer(new SketchbookSavePayload(data, this.pencilPixelsUsed, this.eraserPixelsUsed, this.currentPageIndex));
+        PacketDistributor.sendToServer(new SketchbookSavePayload(this.currentPageIndex, data, this.pencilPixelsUsed, this.eraserPixelsUsed));
         super.onClose();
     }
 }
