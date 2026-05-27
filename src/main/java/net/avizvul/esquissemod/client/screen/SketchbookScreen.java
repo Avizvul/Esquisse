@@ -471,28 +471,20 @@ public class SketchbookScreen extends Screen {
         if (hasPencil) {
             renderToolButton(guiGraphics, mouseX, mouseY, Tool.PENCIL, PENCIL_TEX, pencilX);
 
-            // --- ИНДИКАЦИЯ ТВЕРДОСТИ ---
-            String hardnessText = "";
-            int hardnessColor = 0;
+            // Показывать текст ТОЛЬКО если карандаш сейчас выбран
+            if (this.activeTool == Tool.PENCIL) {
+                String hardnessText = "";
+                int hardnessColor = 0;
 
-            // Задаем текст и цвет в зависимости от выбранной степени
-            if (this.currentHardness == 1) {
-                hardnessText = "2H";
-                hardnessColor = 0xFFAAAAAA; // Светло-серый
-            } else if (this.currentHardness == 2) {
-                hardnessText = "HB";
-                hardnessColor = 0xFF555555; // Темно-серый
-            } else if (this.currentHardness == 3) {
-                hardnessText = "4B";
-                hardnessColor = 0xFF222222; // Почти черный
+                if (this.currentHardness == 1) { hardnessText = "2H"; hardnessColor = 0xFFAAAAAA; }
+                else if (this.currentHardness == 2) { hardnessText = "HB"; hardnessColor = 0xFF555555; }
+                else if (this.currentHardness == 3) { hardnessText = "4B"; hardnessColor = 0xFF222222; }
+
+                int hardnessX = pencilX + (scaledBtnWidth / 2) - (this.font.width(hardnessText) / 2);
+                int hardnessY = peekY - 24;
+
+                guiGraphics.drawString(this.font, hardnessText, hardnessX, hardnessY, hardnessColor, false);
             }
-
-            // Вычисляем координаты, чтобы текст был ровно по центру над карандашом
-            int hardnessX = pencilX + (scaledBtnWidth / 2) - (this.font.width(hardnessText) / 2);
-            int hardnessY = peekY - 24; // Отступ 12 пикселей вверх от кнопки
-
-            // Рисуем текст (false отключает ванильную тень)
-            guiGraphics.drawString(this.font, hardnessText, hardnessX, hardnessY, hardnessColor, false);
         }
 
         if (hasEraser) {
@@ -864,16 +856,30 @@ public class SketchbookScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        // scrollY > 0 означает скролл колесиком ВВЕРХ
-        if (scrollY > 0) {
-            this.brushSize = Math.min(3, this.brushSize + 1);
-            return true;
+        // Проверяем, зажат ли Shift
+        if (Screen.hasShiftDown()) {
+            // Только для карандаша меняем твердость
+            if (this.activeTool == Tool.PENCIL && hasTool(ModItems.PENCIL.get())) {
+                if (scrollY > 0) { // Скролл ВВЕРХ (увеличиваем твердость)
+                    this.currentHardness++;
+                    if (this.currentHardness > 3) this.currentHardness = 3; // Ограничитель
+                } else if (scrollY < 0) { // Скролл ВНИЗ (уменьшаем твердость)
+                    this.currentHardness--;
+                    if (this.currentHardness < 1) this.currentHardness = 1; // Ограничитель
+                }
+                return true;
+            }
+        } else {
+            // Старое поведение: меняем размер кисти
+            if (scrollY > 0) {
+                this.brushSize = Math.min(3, this.brushSize + 1);
+                return true;
+            } else if (scrollY < 0) {
+                this.brushSize = Math.max(1, this.brushSize - 1);
+                return true;
+            }
         }
-        // scrollY < 0 означает скролл колесиком ВНИЗ
-        else if (scrollY < 0) {
-            this.brushSize = Math.max(1, this.brushSize - 1);
-            return true;
-        }
+
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 

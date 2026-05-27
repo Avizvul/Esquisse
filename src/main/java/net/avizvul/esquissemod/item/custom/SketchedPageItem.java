@@ -1,5 +1,6 @@
 package net.avizvul.esquissemod.item.custom;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
@@ -7,11 +8,51 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.avizvul.esquissemod.client.ClientHooks;
+import net.minecraft.world.level.block.state.BlockState;
 
 public class SketchedPageItem extends Item {
 
     public SketchedPageItem(Properties properties) {
         super(properties);
+    }
+
+    @Override
+    public net.minecraft.world.InteractionResult useOn(net.minecraft.world.item.context.UseOnContext context) {
+        net.minecraft.world.entity.player.Player player = context.getPlayer();
+
+        // Проверяем, что игрок зажал Shift
+        if (player != null && player.isShiftKeyDown()) {
+            Level level = context.getLevel();
+            BlockPos placePos = context.getClickedPos().relative(context.getClickedFace());
+
+            // Проверяем, не занято ли место другим блоком
+            if (!level.getBlockState(placePos).canBeReplaced()) {
+                return net.minecraft.world.InteractionResult.FAIL;
+            }
+
+            // Поворачиваем блок к игроку лицом
+            BlockState state = net.avizvul.esquissemod.block.ModBlocks.SKETCHED_PAGE_BLOCK.get().defaultBlockState()
+                    .setValue(net.avizvul.esquissemod.block.SketchedPageBlock.FACING, player.getDirection().getOpposite());
+
+            level.setBlock(placePos, state, 3); // Ставим блок в мире
+
+            // Достаём свежепоставленный BlockEntity и перекачиваем в него рисунок из предмета
+            net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(placePos);
+            if (be instanceof net.avizvul.esquissemod.block.entity.SketchedPageBlockEntity pageEntity) {
+                net.avizvul.esquissemod.component.SketchData data = context.getItemInHand().get(net.avizvul.esquissemod.component.ModDataComponents.PAGE_DATA.get());
+                if (data != null) {
+                    pageEntity.setSketchData(data); // Передаем данные!
+                }
+            }
+
+            // Тратим 1 листок из инвентаря
+            context.getItemInHand().shrink(1);
+
+            return net.minecraft.world.InteractionResult.sidedSuccess(level.isClientSide());
+        }
+
+        // Если Shift НЕ нажат, пропускаем этот шаг (будет вызван метод use для открытия GUI)
+        return net.minecraft.world.InteractionResult.PASS;
     }
 
     @Override

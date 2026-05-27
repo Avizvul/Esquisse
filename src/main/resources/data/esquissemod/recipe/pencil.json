@@ -3,16 +3,16 @@
   "category": "tool",
   "key": {
     "W": {
-      "tag": "minecraft:planks"
+      "item": "minecraft:stick"
     },
     "C": {
       "tag": "minecraft:coals"
     }
   },
   "pattern": [
-    "WCW",
-    "WCW",
-    " C "
+    "  C",
+    " W ",
+    "   "
   ],
   "result": {
     "count": 1,

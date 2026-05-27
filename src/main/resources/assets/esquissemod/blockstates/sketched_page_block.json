@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "esquissemod:block/sketched_page_block" },
+    "facing=south": { "model": "esquissemod:block/sketched_page_block" },
+    "facing=east":  { "model": "esquissemod:block/sketched_page_block" },
+    "facing=west":  { "model": "esquissemod:block/sketched_page_block" }
+  }
+}

@@ -2,17 +2,13 @@
   "type": "minecraft:crafting_shapeless",
   "category": "tool",
   "ingredients": [
+    [
+      { "item": "minecraft:slime_ball" },
+      { "item": "minecraft:honey_bottle" },
+      { "item": "minecraft:honeycomb" }
+    ],
     {
-      "item": "minecraft:bone_meal"
-    },
-    {
-      "item": "minecraft:wheat"
-    },
-    {
-      "item": "minecraft:slime_ball"
-    },
-    {
-      "tag": "minecraft:wool"
+      "item": "minecraft:bread"
     }
   ],
   "result": {

@@ -1,5 +1,7 @@
 package net.avizvul.esquissemod;
 
+import net.avizvul.esquissemod.block.ModBlocks;
+import net.avizvul.esquissemod.block.entity.ModBlockEntities;
 import net.avizvul.esquissemod.component.ModDataComponents;
 import net.avizvul.esquissemod.item.ModCreativeModeTabs;
 import net.avizvul.esquissemod.item.ModItems;
@@ -47,13 +49,17 @@ public class EsquisseMod {
         // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
         NeoForge.EVENT_BUS.register(this);
 
+        ModBlocks.register(modEventBus);
+        ModBlockEntities.register(modEventBus);
         ModCreativeModeTabs.register(modEventBus);
         ModItems.register(modEventBus);
+
 
         // ---> ВЫЗОВ НАШЕГО РЕЕСТРА КОМПОНЕНТОВ ДАННЫХ <---
         ModDataComponents.register(modEventBus);
 
         modEventBus.addListener(this::registerPayloads);
+
 
         // Register the item to a creative tab
         modEventBus.addListener(this::addCreative);

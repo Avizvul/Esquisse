@@ -17,4 +17,10 @@ public class ClientModEvents {
         // Говорим игре: "Когда встретишь SketchedPageTooltipData, используй ClientSketchedPageTooltip для отрисовки"
         event.register(SketchedPageTooltipData.class, ClientSketchedPageTooltip::new);
     }
+
+    @SubscribeEvent
+    public static void registerBER(net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers event) {
+        event.registerBlockEntityRenderer(net.avizvul.esquissemod.block.entity.ModBlockEntities.SKETCHED_PAGE_BE.get(),
+                net.avizvul.esquissemod.client.render.SketchedPageBlockEntityRenderer::new);
+    }
 }
