@@ -27,25 +27,30 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
         SketchData data = blockEntity.getSketchData();
         if (data == null || data.isEmpty()) return;
 
-        // Узнаем, в какую сторону "смотрит" блок бумаги
         Direction facing = blockEntity.getBlockState().getValue(SketchedPageBlock.FACING);
 
         poseStack.pushPose();
 
-        // 1. Сдвигаем матрицу в самый центр физического блока (0.5, 0.5, 0.5)
+        // 1. Сдвигаем матрицу в центр физического блока
         poseStack.translate(0.5f, 0.5f, 0.5f);
 
-        // 2. Поворачиваем холст лицом к игроку
-        float rotation = -facing.toYRot();
-        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(rotation));
+        // 2. Поворачиваем холст так, чтобы он лег на нужную плоскость (пол, потолок или стены)
+        switch (facing) {
+            case NORTH -> poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180f));
+            case SOUTH -> poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(0f));
+            case WEST -> poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(90f));
+            case EAST -> poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-90f));
+            case UP -> poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-90f));
+            case DOWN -> poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(90f));
+        }
 
-        // 3. Прижимаем лист бумаги к стене блока (СМЕЩАЕМ НАЗАД: -0.4375f это ровно на толщину хитбокса)
+        // 3. Прижимаем лист бумаги к самой поверхности стены/пола/потолка (-0.49f)
         poseStack.translate(0.0f, 0.0f, -0.49f);
 
-        // --- ВРАЩЕНИЕ ВОКРУГ СВОЕЙ ОСИ ПО Z ---
+        // --- 4. ВРАЩЕНИЕ ВОКРУГ СВОЕЙ ОСИ ПО Z (При кликах игрока) ---
         poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(blockEntity.getRotation() * 90f));
 
-        // 4. Масштабируем: холст 126x192 (63*2, 96*2). Делаем так, чтобы он занимал 80% от блока (0.8f)
+        // 5. Масштабируем: холст 126x192...
         float scale = 0.8f / 192f;
         poseStack.scale(scale, -scale, scale);
 

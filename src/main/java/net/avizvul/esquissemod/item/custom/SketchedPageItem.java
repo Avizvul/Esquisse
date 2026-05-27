@@ -30,9 +30,12 @@ public class SketchedPageItem extends Item {
                 return net.minecraft.world.InteractionResult.FAIL;
             }
 
-            // Поворачиваем блок к игроку лицом
+            // Получаем конкретную сторону блока, по которой кликнули (например, UP - это пол, NORTH - стена и т.д.)
+            net.minecraft.core.Direction clickedFace = context.getClickedFace();
+
+            // Прикрепляем рисунок ровно к этой стороне
             BlockState state = net.avizvul.esquissemod.block.ModBlocks.SKETCHED_PAGE_BLOCK.get().defaultBlockState()
-                    .setValue(net.avizvul.esquissemod.block.SketchedPageBlock.FACING, player.getDirection().getOpposite());
+                    .setValue(net.avizvul.esquissemod.block.SketchedPageBlock.FACING, clickedFace);
 
             level.setBlock(placePos, state, 3); // Ставим блок в мире
 

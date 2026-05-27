@@ -611,7 +611,7 @@ public class SketchbookScreen extends Screen {
                             }
 
                             // Уровень прозрачности (Альфа) в зависимости от твердости H / HB / B
-                            int alpha = (this.currentHardness == 1) ? 64 : (this.currentHardness == 2) ? 128 : 192;
+                            int alpha = (this.currentHardness == 1) ? 64 : (this.currentHardness == 2) ? 128 : 255;
                             int newColorArgb = (alpha << 24) | (brushRgb & 0xFFFFFF);
 
                             // Смешиваем старый цвет пикселя с новым! (Alpha Blending)

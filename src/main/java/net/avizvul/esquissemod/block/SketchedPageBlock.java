@@ -10,15 +10,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import org.jetbrains.annotations.Nullable;
 
 public class SketchedPageBlock extends Block implements EntityBlock {
-    public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    public static final net.minecraft.world.level.block.state.properties.DirectionProperty FACING =
+            net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING;
 
     public SketchedPageBlock(Properties properties) {
         super(properties);
@@ -60,6 +59,7 @@ public class SketchedPageBlock extends Block implements EntityBlock {
         }
         return net.minecraft.world.InteractionResult.PASS;
     }
+
     @Override
     public net.minecraft.world.level.block.RenderShape getRenderShape(BlockState state) {
         return net.minecraft.world.level.block.RenderShape.INVISIBLE;
@@ -69,6 +69,9 @@ public class SketchedPageBlock extends Block implements EntityBlock {
     protected static final net.minecraft.world.phys.shapes.VoxelShape SOUTH_AABB = net.minecraft.world.level.block.Block.box(1.0D, 1.0D, 0.0D, 15.0D, 15.0D, 1.0D);
     protected static final net.minecraft.world.phys.shapes.VoxelShape WEST_AABB = net.minecraft.world.level.block.Block.box(15.0D, 1.0D, 1.0D, 16.0D, 15.0D, 15.0D);
     protected static final net.minecraft.world.phys.shapes.VoxelShape EAST_AABB = net.minecraft.world.level.block.Block.box(0.0D, 1.0D, 1.0D, 1.0D, 15.0D, 15.0D);
+    // НОВЫЕ: Хитбоксы для пола и потолка
+    protected static final net.minecraft.world.phys.shapes.VoxelShape UP_AABB = net.minecraft.world.level.block.Block.box(1.0D, 0.0D, 1.0D, 15.0D, 1.0D, 15.0D);
+    protected static final net.minecraft.world.phys.shapes.VoxelShape DOWN_AABB = net.minecraft.world.level.block.Block.box(1.0D, 15.0D, 1.0D, 15.0D, 16.0D, 15.0D);
 
     @Override
     public net.minecraft.world.phys.shapes.VoxelShape getShape(BlockState state, net.minecraft.world.level.BlockGetter level, net.minecraft.core.BlockPos pos, net.minecraft.world.phys.shapes.CollisionContext context) {
@@ -78,7 +81,8 @@ public class SketchedPageBlock extends Block implements EntityBlock {
             case SOUTH -> SOUTH_AABB;
             case WEST -> WEST_AABB;
             case EAST -> EAST_AABB;
-            default -> NORTH_AABB;
+            case UP -> UP_AABB;       // Если прикреплено к полу
+            case DOWN -> DOWN_AABB;   // Если прикреплено к потолку
         };
     }
 
