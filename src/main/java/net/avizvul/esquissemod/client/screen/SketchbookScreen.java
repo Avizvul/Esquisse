@@ -441,7 +441,7 @@ public class SketchbookScreen extends Screen {
                     }
                 }
 
-                if (this.activeTool == Tool.PENCIL && !colorPencil.isEmpty()) {
+                if (this.activeTool == Tool.COLOR_PENCIL && !colorPencil.isEmpty()) {
                     java.util.List<Integer> colors = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
                     if (!colors.isEmpty()) {
                         int activeIndex = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
@@ -594,9 +594,9 @@ public class SketchbookScreen extends Screen {
         }
 
         // Центр цветового круга (в правом нижнем углу экрана)
-        int centerX = this.width - 50;
+        int centerX = this.width - 80;
         int centerY = this.height - 70;
-        int radius = 22; // Радиус круга
+        int radius = 30; // Радиус круга
 
         // 1. Строим цветовой круг
         for (int i = 0; i < wheelColors.size(); i++) {
@@ -610,7 +610,7 @@ public class SketchbookScreen extends Screen {
         // 2. Строим линию серых оттенков (под кругом)
         int grayY = centerY + radius + 15;
         int swatchSize = 12;
-        int spacing = 4;
+        int spacing = 2;
         int startX = centerX - (grays.size() * (swatchSize + spacing)) / 2; // Центрируем линию
 
         for (int i = 0; i < grays.size(); i++) {
@@ -726,16 +726,6 @@ public class SketchbookScreen extends Screen {
                             }
 
                             if (this.activeTool == Tool.COLOR_PENCIL && !colorPencil.isEmpty()) {
-                                java.util.List<Integer> colors = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
-                                if (!colors.isEmpty()) {
-                                    int activeIndex = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
-                                    int colorId = colors.get(Math.abs(activeIndex) % colors.size());
-                                    brushRgb = net.minecraft.world.item.DyeColor.byId(colorId).getTextureDiffuseColor();
-                                }
-                            }
-
-                            // Если рисуем многоцветным карандашом - достаем активный цвет
-                            if (!colorPencil.isEmpty()) {
                                 java.util.List<Integer> colors = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
                                 if (!colors.isEmpty()) {
                                     int activeIndex = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);

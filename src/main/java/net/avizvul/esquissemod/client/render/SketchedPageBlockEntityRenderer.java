@@ -59,7 +59,6 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
 
         // 3. Выравниваем оси X и Y, чтобы они соответствовали 2D
         poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(180f));
-        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180f));
 
         // 4. Масштаб
         float scale = 0.8f / 192f;
@@ -99,12 +98,10 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
 
         int overlay = net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
 
-        // ИСПРАВЛЕНИЕ: Изменен порядок вершин!
-        // Теперь мы строим полигон так: Верх-Лево -> Верх-Право -> Низ-Право -> Низ-Лево.
-        // Это меняет геометрическую нормаль (winding order), разворачивая "лицо" квадрата строго на игрока!
+        // Восстановлен правильный порядок вершин: Верх-Лево -> Низ-Лево -> Низ-Право -> Верх-Право
         consumer.addVertex(pose, x, y, z).setColor(r, g, b, a).setUv(u0, v0).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, 1.0f);
-        consumer.addVertex(pose, x + width, y, z).setColor(r, g, b, a).setUv(u1, v0).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, 1.0f);
-        consumer.addVertex(pose, x + width, y + height, z).setColor(r, g, b, a).setUv(u1, v1).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, 1.0f);
         consumer.addVertex(pose, x, y + height, z).setColor(r, g, b, a).setUv(u0, v1).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, 1.0f);
+        consumer.addVertex(pose, x + width, y + height, z).setColor(r, g, b, a).setUv(u1, v1).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, 1.0f);
+        consumer.addVertex(pose, x + width, y, z).setColor(r, g, b, a).setUv(u1, v0).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, 1.0f);
     }
 }
