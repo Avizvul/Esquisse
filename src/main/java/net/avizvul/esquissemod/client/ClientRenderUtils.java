@@ -12,7 +12,7 @@ public class ClientRenderUtils {
 
         int width = pixels.length;
         // ИСПРАВЛЕНО: pixels.length вместо pixels.length
-        int height = pixels.length;
+        int height = pixels[0].length;
 
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {

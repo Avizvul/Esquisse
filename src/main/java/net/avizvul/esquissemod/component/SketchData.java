@@ -75,7 +75,7 @@ public class SketchData {
         int[][] result = new int[targetWidth][targetHeight];
         int copyWidth = Math.min(targetWidth, this.pixels.length);
         if (copyWidth > 0) {
-            int copyHeight = Math.min(targetHeight, this.pixels.length);
+            int copyHeight = Math.min(targetHeight, this.pixels[0].length);
             for (int x = 0; x < copyWidth; x++) {
                 System.arraycopy(this.pixels[x], 0, result[x], 0, copyHeight);
             }
@@ -87,7 +87,7 @@ public class SketchData {
         int w = arr.length;
         if (w == 0) return new SketchData(new int[][]{});
         // ИСПРАВЛЕНО: arr.length
-        int h = arr.length;
+        int h = arr[0].length;
         int[][] copy = new int[w][h];
         for (int x = 0; x < w; x++) {
             System.arraycopy(arr[x], 0, copy[x], 0, h);

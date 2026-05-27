@@ -406,23 +406,38 @@ public class SketchbookScreen extends Screen {
                 int centerY = (int) ((lMouseY - renderY) / physicalCellSize);
                 int offset = this.brushSize / 2;
 
-                // Умный предпросмотр: если рисуем цветным карандашом, квадрат берет его цвет
+                // Умный предпросмотр
                 int previewColor = (this.activeTool == Tool.ERASER) ? 0x60FF0000 : 0x60000000;
 
+                // Ищем цветной карандаш напрямую в инвентаре, чтобы избежать ошибки с необъявленной переменной
+                net.minecraft.world.item.ItemStack colorPencil = net.minecraft.world.item.ItemStack.EMPTY;
+                if (this.minecraft != null && this.minecraft.player != null) {
+                    for (net.minecraft.world.item.ItemStack st : this.minecraft.player.getInventory().items) {
+                        if (st.is(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get())) { colorPencil = st; break; }
+                    }
+                    if (colorPencil.isEmpty()) {
+                        for (net.minecraft.world.item.ItemStack st : this.minecraft.player.getInventory().offhand) {
+                            if (st.is(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get())) { colorPencil = st; break; }
+                        }
+                    }
+                }
+
                 if (this.activeTool == Tool.PENCIL && !colorPencil.isEmpty()) {
-                    java.util.List<Integer> colors = colorPencil.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+                    java.util.List<Integer> colors = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
                     if (!colors.isEmpty()) {
-                        int activeIndex = colorPencil.getOrDefault(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
+                        int activeIndex = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
                         int colorId = colors.get(Math.abs(activeIndex) % colors.size());
                         // Берем цвет и делаем его полупрозрачным для предпросмотра (0x60)
                         previewColor = net.minecraft.world.item.DyeColor.byId(colorId).getTextureDiffuseColor() | 0x60000000;
                     }
                 }
 
+                // Отрисовка самого квадрата предпросмотра на холсте
                 for (int x = centerX - offset; x < centerX - offset + this.brushSize; x++) {
                     for (int y = centerY - offset; y < centerY - offset + this.brushSize; y++) {
                         if (x >= 0 && x < this.canvasWidth * this.resolutionMultiplier &&
                                 y >= 0 && y < this.canvasHeight * this.resolutionMultiplier) {
+
                             int drawPixelX = scaledCanvasLeft + (x * this.scale);
                             int drawPixelY = scaledCanvasTop + (y * this.scale);
                             guiGraphics.fill(drawPixelX, drawPixelY, drawPixelX + this.scale, drawPixelY + this.scale, previewColor);
@@ -546,11 +561,10 @@ public class SketchbookScreen extends Screen {
     private void drawPixel(double lMouseX, double lMouseY, boolean isEraser) {
         int canvasScreenLeft = (int) this.exactGuiLeft + ((this.frameWidth + this.deadZoneWidth) * this.scale);
         int canvasScreenTop = (int) this.exactGuiTop;
-
         double physicalCellSize = (double) this.scale / this.resolutionMultiplier;
+
         int centerX = (int) ((lMouseX - canvasScreenLeft) / physicalCellSize);
         int centerY = (int) ((lMouseY - canvasScreenTop) / physicalCellSize);
-
         int offset = this.brushSize / 2;
 
         for (int x = centerX - offset; x < centerX - offset + this.brushSize; x++) {
@@ -558,32 +572,58 @@ public class SketchbookScreen extends Screen {
                 if (x >= 0 && x < this.canvasWidth * this.resolutionMultiplier &&
                         y >= 0 && y < this.canvasHeight * this.resolutionMultiplier) {
 
-                    // Если мы используем ластик
                     if (isEraser) {
                         if (pixels[x][y] != 0) {
                             pixels[x][y] = 0;
                             this.eraserPixelsUsed++;
                         }
                     } else {
-                        // Инициализируем память штриха, если она пустая
                         if (this.strokePixels == null) {
                             this.strokePixels = new boolean[this.canvasWidth * this.resolutionMultiplier][this.canvasHeight * this.resolutionMultiplier];
                         }
 
-                        // --- ПРАВИЛЬНОЕ НАСЛОЕНИЕ ---
-                        // Проверяем только то, не красили ли мы этот пиксель в ТЕКУЩЕМ штрихе
+                        // Проверяем, не красили ли мы этот пиксель в ТЕКУЩЕМ движении мыши
                         if (!this.strokePixels[x][y]) {
-                            int increment = (this.currentHardness == 3) ? 4 : this.currentHardness;
+                            // Цвет по умолчанию (темно-серый)
+                            int brushRgb = 0x111111;
 
-                            if (pixels[x][y] < 4) {
-                                int newValue = pixels[x][y] + increment;
-                                // Прибавляем цвет. Math.min гарантирует, что мы не уйдем выше 4 (черный цвет)
-                                pixels[x][y] = (byte) Math.min(4, newValue);
-                                this.pencilPixelsUsed++;
+                            // Ищем цветной карандаш напрямую в инвентаре игрока
+                            net.minecraft.world.item.ItemStack colorPencil = net.minecraft.world.item.ItemStack.EMPTY;
+                            if (this.minecraft != null && this.minecraft.player != null) {
+                                for (net.minecraft.world.item.ItemStack st : this.minecraft.player.getInventory().items) {
+                                    if (st.is(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get())) { colorPencil = st; break; }
+                                }
+                                if (colorPencil.isEmpty()) {
+                                    for (net.minecraft.world.item.ItemStack st : this.minecraft.player.getInventory().offhand) {
+                                        if (st.is(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get())) { colorPencil = st; break; }
+                                    }
+                                }
                             }
 
-                            // Запоминаем, что в этом движении мыши мы пиксель уже затемнили
-                            this.strokePixels[x][y] = true;
+                            // Если рисуем многоцветным карандашом - достаем активный цвет
+                            if (!colorPencil.isEmpty()) {
+                                java.util.List<Integer> colors = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+                                if (!colors.isEmpty()) {
+                                    int activeIndex = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
+                                    int colorId = colors.get(Math.abs(activeIndex) % colors.size());
+                                    brushRgb = net.minecraft.world.item.DyeColor.byId(colorId).getTextureDiffuseColor();
+                                }
+                            }
+
+                            // Уровень прозрачности (Альфа) в зависимости от твердости H / HB / B
+                            int alpha = (this.currentHardness == 1) ? 64 : (this.currentHardness == 2) ? 128 : 192;
+                            int newColorArgb = (alpha << 24) | (brushRgb & 0xFFFFFF);
+
+                            // Смешиваем старый цвет пикселя с новым! (Alpha Blending)
+                            int oldColor = pixels[x][y];
+                            int blendedColor = net.avizvul.esquissemod.util.ColorUtils.blendColors(oldColor, newColorArgb);
+
+                            // Применяем
+                            if (pixels[x][y] != blendedColor) {
+                                pixels[x][y] = blendedColor;
+                                this.pencilPixelsUsed++;
+                                this.strokePixels[x][y] = true;
+                            }
                         }
                     }
                 }
