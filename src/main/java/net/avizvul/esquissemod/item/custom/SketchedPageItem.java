@@ -40,8 +40,34 @@ public class SketchedPageItem extends Item {
             level.setBlock(placePos, state, 3); // Ставим блок в мире
 
             // Достаём свежепоставленный BlockEntity и перекачиваем в него рисунок из предмета
+            // Достаём свежепоставленный BlockEntity и перекачиваем в него рисунок из предмета
             net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(placePos);
             if (be instanceof net.avizvul.esquissemod.block.entity.SketchedPageBlockEntity pageEntity) {
+
+                // --- НОВОЕ: Автоматический поворот рисунка на полу и потолке ---
+                if (clickedFace == net.minecraft.core.Direction.UP || clickedFace == net.minecraft.core.Direction.DOWN) {
+                    int rot = 0;
+
+                    if (clickedFace == net.minecraft.core.Direction.UP) { // Если лепим на ПОЛ
+                        switch (player.getDirection()) {
+                            case SOUTH -> rot = 0;
+                            case WEST  -> rot = 1;
+                            case NORTH -> rot = 2;
+                            case EAST  -> rot = 3;
+                        }
+                    } else { // Если лепим на ПОТОЛОК
+                        switch (player.getDirection()) {
+                            case NORTH -> rot = 0;
+                            case EAST  -> rot = 1;
+                            case SOUTH -> rot = 2;
+                            case WEST  -> rot = 3;
+                        }
+                    }
+                    // Сохраняем вычисленный поворот в блок (это сразу синхронизируется с рендером!)
+                    pageEntity.setRotation(rot);
+                }
+                // ---------------------------------------------------------------
+
                 net.avizvul.esquissemod.component.SketchData data = context.getItemInHand().get(net.avizvul.esquissemod.component.ModDataComponents.PAGE_DATA.get());
                 if (data != null) {
                     pageEntity.setSketchData(data); // Передаем данные!

@@ -1,8 +1,10 @@
 {
   "variants": {
     "facing=north": { "model": "esquissemod:block/sketched_page_block" },
-    "facing=south": { "model": "esquissemod:block/sketched_page_block" },
-    "facing=east":  { "model": "esquissemod:block/sketched_page_block" },
-    "facing=west":  { "model": "esquissemod:block/sketched_page_block" }
+    "facing=south": { "model": "esquissemod:block/sketched_page_block", "y": 180 },
+    "facing=west": { "model": "esquissemod:block/sketched_page_block", "y": 270 },
+    "facing=east": { "model": "esquissemod:block/sketched_page_block", "y": 90 },
+    "facing=up": { "model": "esquissemod:block/sketched_page_block", "x": 270 },
+    "facing=down": { "model": "esquissemod:block/sketched_page_block", "x": 90 }
   }
 }

@@ -29,8 +29,10 @@ public class SketchbookScreen extends Screen {
     private static final ResourceLocation ROTATE_BTN_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_rotate.png");
     private static final ResourceLocation PAGE_B_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_page_b.png");
     private static final ResourceLocation PAGE_F_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_page_f.png");
+    private static final ResourceLocation COLOR_PENCIL_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_color_pencil.png");
+    private static final ResourceLocation COLOR_PENCIL_TINT_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_color_pencil_tint.png");
 
-    private enum Tool { PENCIL, ERASER }
+    private enum Tool { PENCIL, COLOR_PENCIL, ERASER }
     private Tool activeTool = Tool.PENCIL;
 
     private final int fileWidth = 74;
@@ -173,7 +175,8 @@ public class SketchbookScreen extends Screen {
         int scaledBtnWidth = this.buttonWidth * this.buttonScale;
         int scaledBtnHeight = this.buttonHeight * this.buttonScale;
         int pencilX = (this.width / 2) + 100;
-        int eraserX = pencilX + scaledBtnWidth + 10;
+        int colorPencilX = pencilX + scaledBtnWidth + 5;
+        int eraserX = colorPencilX + scaledBtnWidth + 5;
         int peekY = this.height - scaledBtnHeight;
 
         return new ToolButtonCoords(scaledBtnWidth, scaledBtnHeight, pencilX, eraserX, peekY);
@@ -464,35 +467,50 @@ public class SketchbookScreen extends Screen {
         ToolButtonCoords toolCoords = getToolButtonCoords();
         int scaledBtnWidth = toolCoords.scaledBtnWidth();
         int pencilX = toolCoords.pencilX();
+        int colorPencilX = toolCoords.colorPencilX();
         int eraserX = toolCoords.eraserX();
         int peekY = toolCoords.peekY();
 
-        if (hasPencil) {
-            renderToolButton(guiGraphics, mouseX, mouseY, Tool.PENCIL, PENCIL_TEX, pencilX);
+        ItemStack colorPencilStack = getColorPencilStack();
+        boolean hasColorPencil = !colorPencilStack.isEmpty();
 
-            // Показывать текст ТОЛЬКО если карандаш сейчас выбран
-            if (this.activeTool == Tool.PENCIL) {
-                String hardnessText = "";
-                int hardnessColor = 0;
+        // Рендер кнопок
+        if (hasPencil) renderToolButton(guiGraphics, mouseX, mouseY, Tool.PENCIL, PENCIL_TEX, pencilX);
+        if (hasColorPencil) renderColorToolButton(guiGraphics, mouseX, mouseY, colorPencilX, colorPencilStack);
+        if (hasEraser) renderToolButton(guiGraphics, mouseX, mouseY, Tool.ERASER, ERASER_TEX, eraserX);
 
-                if (this.currentHardness == 1) { hardnessText = "2H"; hardnessColor = 0xFFAAAAAA; }
-                else if (this.currentHardness == 2) { hardnessText = "HB"; hardnessColor = 0xFF555555; }
-                else if (this.currentHardness == 3) { hardnessText = "4B"; hardnessColor = 0xFF222222; }
-
-                int hardnessX = pencilX + (scaledBtnWidth / 2) - (this.font.width(hardnessText) / 2);
-                int hardnessY = peekY - 24;
-
-                guiGraphics.drawString(this.font, hardnessText, hardnessX, hardnessY, hardnessColor, false);
-            }
-        }
-
-        if (hasEraser) {
-            renderToolButton(guiGraphics, mouseX, mouseY, Tool.ERASER, ERASER_TEX, eraserX);
-        }
-
-        // Отрисовка индикаторов размера кисти (точки)
+        // Индикаторы размера кисти и палитра
         if (this.activeTool == Tool.PENCIL && hasPencil) {
             renderSizeIndicators(guiGraphics, mouseX, mouseY, pencilX, peekY);
+
+            // Текст твердости (2H, HB, 4B)
+            String hardnessText = (this.currentHardness == 1) ? "2H" : (this.currentHardness == 2) ? "HB" : "4B";
+            int hardnessColor = (this.currentHardness == 1) ? 0xFFAAAAAA : (this.currentHardness == 2) ? 0xFF555555 : 0xFF222222;
+            int hX = pencilX + (scaledBtnWidth / 2) - (this.font.width(hardnessText) / 2);
+            guiGraphics.drawString(this.font, hardnessText, hX, peekY - 24, hardnessColor, false);
+
+        } else if (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil) {
+            renderSizeIndicators(guiGraphics, mouseX, mouseY, colorPencilX, peekY);
+
+            // Отрисовка палитры только если выбран цветной карандаш
+            java.util.List<Integer> colors = colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+            if (!colors.isEmpty()) {
+                int activeIndex = colorPencilStack.getOrDefault(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
+                int safeIndex = Math.abs(activeIndex) % colors.size();
+                int swatchSize = 12;
+                int spacing = 4;
+                int paletteX = eraserX + scaledBtnWidth + 10; // Смещаем палитру за ластик
+                int paletteY = peekY + (scaledBtnHeight / 2) - (swatchSize / 2);
+
+                for (int i = 0; i < colors.size(); i++) {
+                    int colorId = colors.get(i);
+                    int rgb = net.minecraft.world.item.DyeColor.byId(colorId).getTextureDiffuseColor() | 0xFF000000;
+                    int drawX = paletteX + (i * (swatchSize + spacing));
+                    int outlineColor = (i == safeIndex) ? 0xFFFFFFFF : 0xFF444444;
+                    guiGraphics.fill(drawX - 1, paletteY - 1, drawX + swatchSize + 1, paletteY + swatchSize + 1, outlineColor);
+                    guiGraphics.fill(drawX, paletteY, drawX + swatchSize, paletteY + swatchSize, rgb);
+                }
+            }
         } else if (this.activeTool == Tool.ERASER && hasEraser) {
             renderSizeIndicators(guiGraphics, mouseX, mouseY, eraserX, peekY);
         }
@@ -513,6 +531,42 @@ public class SketchbookScreen extends Screen {
         float vOffset = isHovered ? this.buttonHeight : 0.0f;
 
         guiGraphics.blit(texture, x, renderY, scaledWidth, scaledHeight, 0.0f, vOffset, this.buttonWidth, this.buttonHeight, this.buttonWidth, this.buttonHeight * 2);
+    }
+
+    private void renderColorToolButton(GuiGraphics guiGraphics, int mouseX, int mouseY, int x, net.minecraft.world.item.ItemStack colorPencil) {
+        boolean isSelected = (this.activeTool == Tool.COLOR_PENCIL);
+        int scaledWidth = this.buttonWidth * this.buttonScale;
+        int scaledHeight = this.buttonHeight * this.buttonScale;
+        int peekY = this.height - scaledHeight;
+        int baseY = this.height - (scaledHeight / 2);
+        int renderY = isSelected ? peekY : baseY;
+
+        boolean isHovered = mouseX >= x && mouseX < x + scaledWidth && mouseY >= renderY && mouseY < renderY + scaledHeight;
+        float vOffset = isHovered ? this.buttonHeight : 0.0f;
+
+        // 1. Отрисовка базовой части (дерево, контур)
+        guiGraphics.blit(COLOR_PENCIL_TEX, x, renderY, scaledWidth, scaledHeight, 0.0f, vOffset, this.buttonWidth, this.buttonHeight, this.buttonWidth, this.buttonHeight * 2);
+
+        // 2. Получаем активный цвет из карандаша
+        int rgb = 0xFFFFFF; // Белый по умолчанию
+        java.util.List<Integer> colors = colorPencil.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+        if (!colors.isEmpty()) {
+            int activeIndex = colorPencil.getOrDefault(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
+            int colorId = colors.get(Math.abs(activeIndex) % colors.size());
+            rgb = net.minecraft.world.item.DyeColor.byId(colorId).getTextureDiffuseColor();
+        }
+
+        // Извлекаем Red, Green, Blue в диапазоне от 0.0 до 1.0
+        float r = ((rgb >> 16) & 0xFF) / 255.0f;
+        float g = ((rgb >> 8) & 0xFF) / 255.0f;
+        float b = (rgb & 0xFF) / 255.0f;
+
+        // 3. Задаем цвет рендера и рисуем слой маски (грифель)
+        guiGraphics.setColor(r, g, b, 1.0f);
+        guiGraphics.blit(COLOR_PENCIL_TINT_TEX, x, renderY, scaledWidth, scaledHeight, 0.0f, vOffset, this.buttonWidth, this.buttonHeight, this.buttonWidth, this.buttonHeight * 2);
+
+        // 4. ВАЖНО: Сбрасываем цвет графики обратно на белый, чтобы не покрасить весь остальной интерфейс!
+        guiGraphics.setColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     // Отрисовка индикаторов размера (лесенка: 3x3, 5x5, 7x7)

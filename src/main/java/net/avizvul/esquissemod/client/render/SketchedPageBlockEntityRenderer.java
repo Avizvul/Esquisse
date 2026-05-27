@@ -27,46 +27,54 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
 
         poseStack.pushPose();
 
-        // 1. Центрируем внутри блока
-        poseStack.translate(0.5f, 0.5f, 0.5f);
-
-        // 2. ВАНИЛЬНАЯ МАГИЯ (Математика Рамки).
-        // Вращение по оси Y
-        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180.0f - facing.toYRot()));
-
-        // Вращение по оси X (т.к. метода toXRot() нет, задаем углы для пола и потолка вручную)
-        float xRot = 0.0f;
-        if (facing == Direction.UP) {
-            xRot = -90.0f;
-        } else if (facing == Direction.DOWN) {
-            xRot = 90.0f;
+        // 1. ЖЕСТКАЯ АБСОЛЮТНАЯ ПРИВЯЗКА К ПОВЕРХНОСТИ
+        switch (facing) {
+            case UP: // Пол: абсолютный центр на Y=0.01
+                poseStack.translate(0.5f, 0.01f, 0.5f);
+                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(90f));
+                break;
+            case DOWN: // Потолок: абсолютный центр на Y=0.99
+                poseStack.translate(0.5f, 0.99f, 0.5f);
+                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-90f));
+                break;
+            case NORTH: // Южная стена (блок смотрит на Север)
+                poseStack.translate(0.5f, 0.5f, 0.99f);
+                break;
+            case SOUTH: // Северная стена (блок смотрит на Юг)
+                poseStack.translate(0.5f, 0.5f, 0.01f);
+                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180f));
+                break;
+            case WEST: // Восточная стена
+                poseStack.translate(0.99f, 0.5f, 0.5f);
+                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(90f));
+                break;
+            case EAST: // Западная стена
+                poseStack.translate(0.01f, 0.5f, 0.5f);
+                poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-90f));
+                break;
         }
-        poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(xRot));
 
-        // 3. Прижимаем холст вплотную к стене (сдвигаем вглубь на 0.49f)
-        poseStack.translate(0.0f, 0.0f, 0.49f);
-
-        // 4. Пользовательское вращение (при кликах игрока)
+        // 2. Вращение от кликов игрока (ПКМ по блоку)
         poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(blockEntity.getRotation() * 90f));
 
-        // 5. Переворачиваем плоскость по Z, чтобы ось Y пошла вниз (как в 2D-координатах)
+        // 3. Выравниваем оси X и Y, чтобы они соответствовали 2D
         poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(180f));
+        poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180f));
 
-        // 6. Масштаб
+        // 4. Масштаб
         float scale = 0.8f / 192f;
         poseStack.scale(scale, scale, scale);
 
-        // 7. Сдвигаем холст так, чтобы он был по центру
+        // 5. Сдвигаем левый верхний угол (126x192) ровно в геометрический центр
         poseStack.translate(-63.0f, -96.0f, 0.0f);
 
-        // ИСПРАВЛЕНИЕ: Берем один общий объект Pose (содержит в себе и позиции, и нормали света)
         PoseStack.Pose pose = poseStack.last();
 
-        // --- ФОН ---
+        // --- ФОН (Бумага) ---
         VertexConsumer bgConsumer = bufferSource.getBuffer(RenderType.entityCutout(PAGE_TEX));
         drawQuad(pose, bgConsumer, 0, 0, 0.0f, 126, 192, 0.0f, 0.0f, 1.0f, 1.0f, 0xFFFFFFFF, packedLight);
 
-        // --- ПИКСЕЛИ ---
+        // --- ПИКСЕЛИ (Рисунок) ---
         VertexConsumer pixelConsumer = bufferSource.getBuffer(RenderType.entityTranslucentCull(PAGE_TEX));
         int[][] pixels = data.toArray(126, 192);
 
@@ -74,7 +82,8 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
             for (int y = 0; y < 192; y++) {
                 int pixelColor = pixels[x][y];
                 if (pixelColor != 0) {
-                    drawQuad(pose, pixelConsumer, x, y, -0.01f, 1, 1, 0.1f, 0.1f, 0.11f, 0.11f, pixelColor, packedLight);
+                    // Z = +0.01f. Пиксели выдвигаются БЛИЖЕ к игроку поверх бумаги!
+                    drawQuad(pose, pixelConsumer, x, y, 0.01f, 1, 1, 0.1f, 0.1f, 0.11f, 0.11f, pixelColor, packedLight);
                 }
             }
         }
@@ -82,7 +91,6 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
         poseStack.popPose();
     }
 
-    // ИСПРАВЛЕНИЕ: Метод теперь принимает PoseStack.Pose вместо раздельных матриц
     private void drawQuad(PoseStack.Pose pose, VertexConsumer consumer, float x, float y, float z, float width, float height, float u0, float v0, float u1, float v1, int argb, int light) {
         int r = (argb >> 16) & 0xFF;
         int g = (argb >> 8) & 0xFF;
@@ -91,10 +99,12 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
 
         int overlay = net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
 
-        // Передаем единый объект 'pose' и в addVertex (для координат), и в setNormal (для теней)
-        consumer.addVertex(pose, x, y, z).setColor(r, g, b, a).setUv(u0, v0).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, -1.0f);
-        consumer.addVertex(pose, x, y + height, z).setColor(r, g, b, a).setUv(u0, v1).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, -1.0f);
-        consumer.addVertex(pose, x + width, y + height, z).setColor(r, g, b, a).setUv(u1, v1).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, -1.0f);
-        consumer.addVertex(pose, x + width, y, z).setColor(r, g, b, a).setUv(u1, v0).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, -1.0f);
+        // ИСПРАВЛЕНИЕ: Изменен порядок вершин!
+        // Теперь мы строим полигон так: Верх-Лево -> Верх-Право -> Низ-Право -> Низ-Лево.
+        // Это меняет геометрическую нормаль (winding order), разворачивая "лицо" квадрата строго на игрока!
+        consumer.addVertex(pose, x, y, z).setColor(r, g, b, a).setUv(u0, v0).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, 1.0f);
+        consumer.addVertex(pose, x + width, y, z).setColor(r, g, b, a).setUv(u1, v0).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, 1.0f);
+        consumer.addVertex(pose, x + width, y + height, z).setColor(r, g, b, a).setUv(u1, v1).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, 1.0f);
+        consumer.addVertex(pose, x, y + height, z).setColor(r, g, b, a).setUv(u0, v1).setOverlay(overlay).setLight(light).setNormal(pose, 0.0f, 0.0f, 1.0f);
     }
 }
