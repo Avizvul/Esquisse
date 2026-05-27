@@ -13,7 +13,7 @@ public class SketchData {
 
     public static final net.minecraft.network.codec.StreamCodec<io.netty.buffer.ByteBuf, SketchData> STREAM_CODEC =
             net.minecraft.network.codec.StreamCodec.composite(
-                    net.minecraft.network.codec.ByteBufCodecs.STRING_UTF8,
+                    net.minecraft.network.codec.ByteBufCodecs.stringUtf8(300000),
                     SketchData::encodeToString,
                     SketchData::decodeFromString
             );
@@ -86,6 +86,7 @@ public class SketchData {
     public static SketchData fromArray(int[][] arr) {
         int w = arr.length;
         if (w == 0) return new SketchData(new int[][]{});
+        // ИСПРАВЛЕНО: arr.length
         int h = arr.length;
         int[][] copy = new int[w][h];
         for (int x = 0; x < w; x++) {

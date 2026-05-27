@@ -376,18 +376,18 @@ public class SketchbookScreen extends Screen {
         int btnY = renderY + ((this.fileHeight - btnFileHeight) / 2) * this.scale;
         guiGraphics.blit(ROTATE_BTN_TEX, btnX, btnY, btnFileWidth * this.scale, btnFileHeight * this.scale, 0.0f, 0.0f, btnFileWidth, btnFileHeight, btnFileWidth, btnFileHeight);
 
-        // --- 6. ОТРИСОВКА ХОЛСТА (ПИКСЕЛЕЙ) ---
+        // --- 6. ОТРИСОВКА ХОЛСТА И ПРЕДПРОСМОТРА ---
         int canvasScreenLeft = renderX + ((this.frameWidth + this.deadZoneWidth) * this.scale);
         int canvasScreenTop = renderY;
 
-        guiGraphics.pose().pushPose();
+        guiGraphics.pose().pushPose(); // НАЧАЛО МАСШТАБА ПИКСЕЛЕЙ
         float resScale = 1.0f / this.resolutionMultiplier;
         guiGraphics.pose().scale(resScale, resScale, 1.0f);
 
-        int scaledCanvasLeft = renderX * this.resolutionMultiplier;
-        int scaledCanvasTop = renderY * this.resolutionMultiplier;
+        int scaledCanvasLeft = canvasScreenLeft * this.resolutionMultiplier;
+        int scaledCanvasTop = canvasScreenTop * this.resolutionMultiplier;
 
-        // Вызываем метод:
+        // Отрисовываем сам рисунок
         net.avizvul.esquissemod.client.ClientRenderUtils.renderSketchPixels(guiGraphics, this.pixels, scaledCanvasLeft, scaledCanvasTop, this.scale);
 
         // --- 7. ПРЕДПРОСМОТР КИСТИ ---
@@ -404,15 +404,25 @@ public class SketchbookScreen extends Screen {
                 double physicalCellSize = (double) this.scale / this.resolutionMultiplier;
                 int centerX = (int) ((lMouseX - canvasScreenLeft) / physicalCellSize);
                 int centerY = (int) ((lMouseY - renderY) / physicalCellSize);
-
                 int offset = this.brushSize / 2;
+
+                // Умный предпросмотр: если рисуем цветным карандашом, квадрат берет его цвет
                 int previewColor = (this.activeTool == Tool.ERASER) ? 0x60FF0000 : 0x60000000;
+
+                if (this.activeTool == Tool.PENCIL && !colorPencil.isEmpty()) {
+                    java.util.List<Integer> colors = colorPencil.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+                    if (!colors.isEmpty()) {
+                        int activeIndex = colorPencil.getOrDefault(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
+                        int colorId = colors.get(Math.abs(activeIndex) % colors.size());
+                        // Берем цвет и делаем его полупрозрачным для предпросмотра (0x60)
+                        previewColor = net.minecraft.world.item.DyeColor.byId(colorId).getTextureDiffuseColor() | 0x60000000;
+                    }
+                }
 
                 for (int x = centerX - offset; x < centerX - offset + this.brushSize; x++) {
                     for (int y = centerY - offset; y < centerY - offset + this.brushSize; y++) {
                         if (x >= 0 && x < this.canvasWidth * this.resolutionMultiplier &&
                                 y >= 0 && y < this.canvasHeight * this.resolutionMultiplier) {
-
                             int drawPixelX = scaledCanvasLeft + (x * this.scale);
                             int drawPixelY = scaledCanvasTop + (y * this.scale);
                             guiGraphics.fill(drawPixelX, drawPixelY, drawPixelX + this.scale, drawPixelY + this.scale, previewColor);
@@ -421,6 +431,7 @@ public class SketchbookScreen extends Screen {
                 }
             }
         }
+
         guiGraphics.pose().popPose(); // Конец скейла для пикселей
 
         // --- 8. НУМЕРАЦИЯ СТРАНИЦ ---
