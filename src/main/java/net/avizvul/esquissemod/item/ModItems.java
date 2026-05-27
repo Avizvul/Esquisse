@@ -30,8 +30,10 @@ public class ModItems {
                     .durability(256)
                     // Инициализируем пустой список цветов и нулевой индекс при выдаче предмета
                     .component(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>())
-                    .component(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0)
-            ));
+                    .component(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0
+                    )
+            )
+    );
 
     public static final DeferredItem<Item> PENCIL = ITEMS.register("pencil",
             () -> new DrawingToolItem(new Item.Properties().durability(256)) {

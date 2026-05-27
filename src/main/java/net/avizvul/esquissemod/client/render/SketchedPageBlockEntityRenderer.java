@@ -31,11 +31,13 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
         switch (facing) {
             case UP: // Пол: абсолютный центр на Y=0.01
                 poseStack.translate(0.5f, 0.01f, 0.5f);
-                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(90f));
+                // ИСПРАВЛЕНИЕ: -90f вместо 90f (разворачивает нормаль вверх к небу)
+                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-90f));
                 break;
             case DOWN: // Потолок: абсолютный центр на Y=0.99
                 poseStack.translate(0.5f, 0.99f, 0.5f);
-                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-90f));
+                // ИСПРАВЛЕНИЕ: 90f вместо -90f (разворачивает нормаль вниз к полу)
+                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(90f));
                 break;
             case NORTH: // Южная стена (блок смотрит на Север)
                 poseStack.translate(0.5f, 0.5f, 0.99f);
@@ -82,7 +84,7 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
                 int pixelColor = pixels[x][y];
                 if (pixelColor != 0) {
                     // Z = +0.01f. Пиксели выдвигаются БЛИЖЕ к игроку поверх бумаги!
-                    drawQuad(pose, pixelConsumer, x, y, 0.01f, 1, 1, 0.1f, 0.1f, 0.11f, 0.11f, pixelColor, packedLight);
+                    drawQuad(pose, pixelConsumer, x, y, -0.1f, 1, 1, 0.1f, 0.1f, 0.11f, 0.11f, pixelColor, packedLight);
                 }
             }
         }
@@ -90,7 +92,11 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
         poseStack.popPose();
     }
 
-    private void drawQuad(PoseStack.Pose pose, VertexConsumer consumer, float x, float y, float z, float width, float height, float u0, float v0, float u1, float v1, int argb, int light) {
+    private void drawQuad(
+            PoseStack.Pose pose,
+            VertexConsumer consumer,
+            float x, float y, float z, float width, float height, float u0, float v0, float u1, float v1,
+            int argb, int light) {
         int r = (argb >> 16) & 0xFF;
         int g = (argb >> 8) & 0xFF;
         int b = argb & 0xFF;

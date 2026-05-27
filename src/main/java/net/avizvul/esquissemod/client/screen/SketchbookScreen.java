@@ -500,13 +500,14 @@ public class SketchbookScreen extends Screen {
         } else if (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil) {
             if (hasColors) {
                 renderSizeIndicators(guiGraphics, mouseX, mouseY, colorPencilX, peekY);
-                renderPalette(guiGraphics, colorPencilStack);
             } else {
-                // НОВОЕ: Если цветов нет, выводим красную надпись "Empty"
+                // Выводим красную надпись "Empty" вместо индикаторов размера
                 String emptyText = "Empty";
                 int emptyX = colorPencilX + (scaledBtnWidth / 2) - (this.font.width(emptyText) / 2);
                 guiGraphics.drawString(this.font, emptyText, emptyX, peekY - 24, 0xFFFF0000, false);
             }
+            // Вынесли палитру наружу, чтобы она показывалась ВСЕГДА!
+            renderPalette(guiGraphics, colorPencilStack);
         } else if (this.activeTool == Tool.ERASER && hasEraser) {
             renderSizeIndicators(guiGraphics, mouseX, mouseY, eraserX, peekY);
         }
@@ -575,71 +576,80 @@ public class SketchbookScreen extends Screen {
     }
 
     // Структура для хранения координат одного квадратика цвета
-    private record Swatch(int index, int colorId, int x, int y) {}
+    private record Swatch(int colorId, int x, int y) {}
 
-    // Метод, рассчитывающий круг и линию градиента
-    private java.util.List<Swatch> getPaletteLayout(net.minecraft.world.item.ItemStack colorPencilStack) {
+    // Метод, рассчитывающий круг и линию градиента (теперь всегда для всех 16 цветов!)
+    private java.util.List<Swatch> getPaletteLayout() {
         java.util.List<Swatch> layout = new java.util.ArrayList<>();
-        java.util.List<Integer> colors = colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
-        if (colors.isEmpty()) return layout;
 
-        java.util.List<Integer> grays = new java.util.ArrayList<>();
-        java.util.List<Integer> wheelColors = new java.util.ArrayList<>();
+        // Серые цвета (0=Белый, 8=Светло-серый, 7=Серый, 15=Черный)
+        java.util.List<Integer> grays = java.util.List.of(0, 8, 7, 15);
+        // Цветные в круг (в порядке красивой радуги)
+        java.util.List<Integer> wheelColors = java.util.List.of(14, 1, 4, 5, 13, 9, 3, 11, 10, 2, 6, 12);
 
-        // Разделяем цвета: ID 0(Белый), 8(Светло-серый), 7(Серый), 15(Черный)
-        for (int i = 0; i < colors.size(); i++) {
-            int c = colors.get(i);
-            if (c == 0 || c == 8 || c == 7 || c == 15) grays.add(i);
-            else wheelColors.add(i);
-        }
-
-        // Центр цветового круга (в правом нижнем углу экрана)
         int centerX = this.width - 80;
         int centerY = this.height - 70;
-        int radius = 30; // Радиус круга
+        int radius = 30;
+        int swatchSize = 12;
 
         // 1. Строим цветовой круг
         for (int i = 0; i < wheelColors.size(); i++) {
-            int originalIndex = wheelColors.get(i);
+            int colorId = wheelColors.get(i);
             double angle = 2 * Math.PI * i / wheelColors.size() - Math.PI / 2;
-            int x = centerX + (int) (Math.cos(angle) * radius);
-            int y = centerY + (int) (Math.sin(angle) * radius);
-            layout.add(new Swatch(originalIndex, colors.get(originalIndex), x, y));
+            int x = centerX + (int) (Math.cos(angle) * radius) - (swatchSize / 2);
+            int y = centerY + (int) (Math.sin(angle) * radius) - (swatchSize / 2);
+            layout.add(new Swatch(colorId, x, y));
         }
 
-        // 2. Строим линию серых оттенков (под кругом)
+        // 2. Строим линию серых оттенков
         int grayY = centerY + radius + 15;
-        int swatchSize = 12;
-        int spacing = 2;
-        int startX = centerX - (grays.size() * (swatchSize + spacing)) / 2; // Центрируем линию
+        int spacing = 4;
+
+        int totalLineWidth = (grays.size() * swatchSize) + ((grays.size() - 1) * spacing);
+        int startX = centerX - (totalLineWidth / 2);
 
         for (int i = 0; i < grays.size(); i++) {
-            int originalIndex = grays.get(i);
+            int colorId = grays.get(i);
             int x = startX + (i * (swatchSize + spacing));
-            layout.add(new Swatch(originalIndex, colors.get(originalIndex), x, grayY));
+            layout.add(new Swatch(colorId, x, grayY));
         }
 
         return layout;
     }
 
     // Метод отрисовки палитры
+// Метод отрисовки палитры
     private void renderPalette(GuiGraphics guiGraphics, net.minecraft.world.item.ItemStack colorPencilStack) {
         if (this.activeTool != Tool.COLOR_PENCIL || colorPencilStack.isEmpty()) return;
 
-        int activeIndex = Math.abs(colorPencilStack.getOrDefault(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0));
         java.util.List<Integer> colors = colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
-        int safeIndex = colors.isEmpty() ? 0 : activeIndex % colors.size();
+        int activeIndex = Math.abs(colorPencilStack.getOrDefault(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0));
+        int activeColorId = colors.isEmpty() ? -1 : colors.get(activeIndex % colors.size());
+
         int swatchSize = 12;
 
-        for (Swatch swatch : getPaletteLayout(colorPencilStack)) {
-            int rgb = net.minecraft.world.item.DyeColor.byId(swatch.colorId()).getTextureDiffuseColor() | 0xFF000000;
-            int outlineColor = (swatch.index() == safeIndex) ? 0xFFFFFFFF : 0xFF444444;
+        // ОШИБКА БЫЛА ЗДЕСЬ: Вызов строго без аргументов!
+        for (Swatch swatch : getPaletteLayout()) {
+            boolean hasColor = colors.contains(swatch.colorId());
+
+            int outlineColor;
+            if (colors.isEmpty()) {
+                outlineColor = 0xFFFFFFFF; // Белая обводка для всех, если карандаш пуст
+            } else {
+                // ОШИБКА БЫЛА ЗДЕСЬ: Мы убрали index, теперь сравниваем по colorId!
+                outlineColor = (hasColor && swatch.colorId() == activeColorId) ? 0xFFFFFFFF : 0xFF444444;
+            }
 
             guiGraphics.fill(swatch.x() - 1, swatch.y() - 1, swatch.x() + swatchSize + 1, swatch.y() + swatchSize + 1, outlineColor);
-            guiGraphics.fill(swatch.x(), swatch.y(), swatch.x() + swatchSize, swatch.y() + swatchSize, rgb);
+
+            if (hasColor) {
+                int rgb = net.minecraft.world.item.DyeColor.byId(swatch.colorId()).getTextureDiffuseColor() | 0xFF000000;
+                guiGraphics.fill(swatch.x(), swatch.y(), swatch.x() + swatchSize, swatch.y() + swatchSize, rgb);
+            } else {
+                guiGraphics.fill(swatch.x(), swatch.y(), swatch.x() + swatchSize, swatch.y() + swatchSize, 0xFF111111);
+            }
         }
     }
-
     // Отрисовка индикаторов размера (лесенка: 3x3, 5x5, 7x7)
     private void renderSizeIndicators(GuiGraphics guiGraphics, int mouseX, int mouseY, int toolX, int toolY) {
         int bottomY = toolY - 4; // Отступ от верхней границы кнопки инструмента
@@ -796,14 +806,20 @@ public class SketchbookScreen extends Screen {
             if (this.activeTool == Tool.PENCIL && hasPencil) {
                 if (handleSizeIndicatorClick(mouseX, mouseY, pencilX, peekY)) return true;
             } else if (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil) {
-                // Если цветов нет, не даем кликать по индикаторам и палитре
                 if (hasColors) {
                     if (handleSizeIndicatorClick(mouseX, mouseY, colorPencilX, peekY)) return true;
+                }
 
-                    int swatchSize = 12;
-                    for (Swatch swatch : getPaletteLayout(colorPencilStack)) {
-                        if (mouseX >= swatch.x() && mouseX <= swatch.x() + swatchSize && mouseY >= swatch.y() && mouseY <= swatch.y() + swatchSize) {
-                            colorPencilStack.set(ModDataComponents.ACTIVE_COLOR_INDEX.get(), swatch.index());
+                // Палитра проверяется всегда
+                int swatchSize = 12;
+                java.util.List<Integer> colors = colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+
+                for (Swatch swatch : getPaletteLayout()) {
+                    if (mouseX >= swatch.x() && mouseX <= swatch.x() + swatchSize && mouseY >= swatch.y() && mouseY <= swatch.y() + swatchSize) {
+
+                        int foundIndex = colors.indexOf(swatch.colorId());
+                        if (foundIndex != -1) {
+                            colorPencilStack.set(ModDataComponents.ACTIVE_COLOR_INDEX.get(), foundIndex);
                             return true;
                         }
                     }
@@ -925,14 +941,20 @@ public class SketchbookScreen extends Screen {
             if (this.activeTool == Tool.PENCIL && hasPencil) {
                 if (handleSizeIndicatorClick(mouseX, mouseY, pencilX, peekY)) return true;
             } else if (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil) {
-                if (handleSizeIndicatorClick(mouseX, mouseY, colorPencilX, peekY)) return true;
+                if (hasColors) {
+                    if (handleSizeIndicatorClick(mouseX, mouseY, colorPencilX, peekY)) return true;
+                }
 
-                // Обработка клика по палитре цветов!
+                // Палитра проверяется всегда
                 int swatchSize = 12;
-                for (Swatch swatch : getPaletteLayout(colorPencilStack)) {
+                java.util.List<Integer> colors = colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+                for (Swatch swatch : getPaletteLayout()) { // Вызов без аргументов!
                     if (mouseX >= swatch.x() && mouseX <= swatch.x() + swatchSize && mouseY >= swatch.y() && mouseY <= swatch.y() + swatchSize) {
-                        colorPencilStack.set(ModDataComponents.ACTIVE_COLOR_INDEX.get(), swatch.index());
-                        return true;
+                        int foundIndex = colors.indexOf(swatch.colorId());
+                        if (foundIndex != -1) { // Клик засчитывается, только если цвет загружен в карандаш
+                            colorPencilStack.set(ModDataComponents.ACTIVE_COLOR_INDEX.get(), foundIndex);
+                            return true;
+                        }
                     }
                 }
             } else if (this.activeTool == Tool.ERASER && hasEraser) {

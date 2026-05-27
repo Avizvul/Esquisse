@@ -47,21 +47,12 @@ public class SketchedPageItem extends Item {
                 // --- НОВОЕ: Автоматический поворот рисунка на полу и потолке ---
                 if (clickedFace == net.minecraft.core.Direction.UP || clickedFace == net.minecraft.core.Direction.DOWN) {
                     int rot = 0;
-
-                    if (clickedFace == net.minecraft.core.Direction.UP) { // Если лепим на ПОЛ
-                        switch (player.getDirection()) {
-                            case SOUTH -> rot = 0;
-                            case WEST  -> rot = 1;
-                            case NORTH -> rot = 2;
-                            case EAST  -> rot = 3;
-                        }
-                    } else { // Если лепим на ПОТОЛОК
-                        switch (player.getDirection()) {
-                            case NORTH -> rot = 0;
-                            case EAST  -> rot = 1;
-                            case SOUTH -> rot = 2;
-                            case WEST  -> rot = 3;
-                        }
+                    // Теперь, когда рендерер исправлен, пол и потолок имеют одинаковую базу
+                    switch (player.getDirection()) {
+                        case NORTH -> rot = 0;
+                        case EAST  -> rot = 1;
+                        case SOUTH -> rot = 2;
+                        case WEST  -> rot = 3;
                     }
                     // Сохраняем вычисленный поворот в блок (это сразу синхронизируется с рендером!)
                     pageEntity.setRotation(rot);

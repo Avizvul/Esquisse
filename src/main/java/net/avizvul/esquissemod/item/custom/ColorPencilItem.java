@@ -54,7 +54,6 @@ public class ColorPencilItem extends DrawingToolItem {
         return super.overrideOtherStackedOnMe(stack, other, slot, action, player, access);
     }
 
-    // ---> ВСТАВИТЬ МЕТОД СЮДА <---
     @Override
     public net.minecraft.resources.ResourceLocation getGuiTexture() {
         return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_color_pencil.png");
