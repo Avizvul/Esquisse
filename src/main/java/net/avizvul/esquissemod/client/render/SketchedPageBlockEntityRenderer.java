@@ -64,16 +64,11 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
 
         for (int x = 0; x < 126; x++) {
             for (int y = 0; y < 192; y++) {
-                int val = pixels[x][y];
-                if (val > 0) {
-                    int color = 0xFF000000;
-                    if (val == 1) color = 0xFFCCCCCC;
-                    else if (val == 2) color = 0xFF888888;
-                    else if (val == 3) color = 0xFF444444;
-                    else if (val >= 4) color = 0xFF111111;
+                int pixelColor = pixels[x][y];
 
-                    // Передаем z = 0.1f (Слегка выдвигаем пиксели карандаша вперед, чтобы не мерцали)
-                    drawQuad(matrix, consumer, x, y, 0.1f, 1, 1, 0.50f, 0.50f, 0.51f, 0.51f, color, packedLight);
+                if (pixelColor != 0) {
+                    // Передаем z = 0.1f и готовый pixelColor для 3D полигона
+                    drawQuad(matrix, consumer, x, y, 0.1f, 1, 1, 0.50f, 0.50f, 0.51f, 0.51f, pixelColor, packedLight);
                 }
             }
         }

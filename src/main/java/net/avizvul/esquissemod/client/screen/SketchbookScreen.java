@@ -384,37 +384,11 @@ public class SketchbookScreen extends Screen {
         float resScale = 1.0f / this.resolutionMultiplier;
         guiGraphics.pose().scale(resScale, resScale, 1.0f);
 
-        int scaledCanvasLeft = canvasScreenLeft * this.resolutionMultiplier;
-        int scaledCanvasTop = canvasScreenTop * this.resolutionMultiplier;
+        int scaledCanvasLeft = renderX * this.resolutionMultiplier;
+        int scaledCanvasTop = renderY * this.resolutionMultiplier;
 
-        for (int x = 0; x < this.canvasWidth * this.resolutionMultiplier; x++) {
-            for (int y = 0; y < this.canvasHeight * this.resolutionMultiplier; y++) {
-                int pixelValue = pixels[x][y];
-
-                // ВАЖНО: Рисуем только в том случае, если на бумаге есть след от карандаша
-                if (pixelValue > 0) {
-                    // Восстанавливаем расчет координат для конкретного пикселя
-                    int drawPixelX = scaledCanvasLeft + (x * this.scale);
-                    int drawPixelY = scaledCanvasTop + (y * this.scale);
-
-                    // Выбираем цвет в зависимости от плотности графита (от 1 до 4)
-                    int pixelColor = 0xFF000000;
-
-                    if (pixelValue == 1) {
-                        pixelColor = 0xFFCCCCCC; // 1 слой (25% плотности)
-                    } else if (pixelValue == 2) {
-                        pixelColor = 0xFF888888; // 2 слоя (50% плотности)
-                    } else if (pixelValue == 3) {
-                        pixelColor = 0xFF444444; // 3 слоя (75% плотности)
-                    } else if (pixelValue >= 4) {
-                        pixelColor = 0xFF111111; // 4 слоя (100% черный)
-                    }
-
-                    // ВАЖНО: Сама команда, которая физически рисует этот пиксель на экране
-                    guiGraphics.fill(drawPixelX, drawPixelY, drawPixelX + this.scale, drawPixelY + this.scale, pixelColor);
-                }
-            }
-        }
+        // Вызываем метод:
+        net.avizvul.esquissemod.client.ClientRenderUtils.renderSketchPixels(guiGraphics, this.pixels, scaledCanvasLeft, scaledCanvasTop, this.scale);
 
         // --- 7. ПРЕДПРОСМОТР КИСТИ ---
         int scaledCanvasWidth = this.canvasWidth * this.scale;

@@ -47,24 +47,8 @@ public class ClientSketchedPageTooltip implements ClientTooltipComponent {
         float resScale = 1.0f / this.resolutionMultiplier;
         guiGraphics.pose().scale(resScale, resScale, 1.0f);
 
-        for (int px = 0; px < this.canvasWidth * this.resolutionMultiplier; px++) {
-            for (int py = 0; py < this.canvasHeight * this.resolutionMultiplier; py++) {
-                int pixelValue = this.pixels[px][py];
+        net.avizvul.esquissemod.client.ClientRenderUtils.renderSketchPixels(guiGraphics, this.pixels, 0, 0, this.scale);
 
-                if (pixelValue > 0) {
-                    int drawPixelX = px * this.scale;
-                    int drawPixelY = py * this.scale;
-
-                    int pixelColor = 0xFF000000;
-                    if (pixelValue == 1) pixelColor = 0xFFCCCCCC;
-                    else if (pixelValue == 2) pixelColor = 0xFF888888;
-                    else if (pixelValue == 3) pixelColor = 0xFF444444;
-                    else if (pixelValue >= 4) pixelColor = 0xFF111111;
-
-                    guiGraphics.fill(drawPixelX, drawPixelY, drawPixelX + this.scale, drawPixelY + this.scale, pixelColor);
-                }
-            }
-        }
         guiGraphics.pose().popPose();
     }
 }

@@ -73,30 +73,8 @@ public class SketchedPageScreen extends Screen {
         int scaledCanvasLeft = renderX * this.resolutionMultiplier;
         int scaledCanvasTop = renderY * this.resolutionMultiplier;
 
-        // Проходимся двумя независимыми переменными: шириной (63) и высотой (96)
-        for (int x = 0; x < this.canvasWidth * this.resolutionMultiplier; x++) {
-            for (int y = 0; y < this.canvasHeight * this.resolutionMultiplier; y++) {
-                int pixelValue = pixels[x][y];
+        net.avizvul.esquissemod.client.ClientRenderUtils.renderSketchPixels(guiGraphics, this.pixels, scaledCanvasLeft, scaledCanvasTop, this.scale);
 
-                if (pixelValue > 0) {
-                    int drawPixelX = scaledCanvasLeft + (x * this.scale);
-                    int drawPixelY = scaledCanvasTop + (y * this.scale);
-
-                    int pixelColor = 0xFF000000;
-                    if (pixelValue == 1) {
-                        pixelColor = 0xFFCCCCCC;
-                    } else if (pixelValue == 2) {
-                        pixelColor = 0xFF888888;
-                    } else if (pixelValue == 3) {
-                        pixelColor = 0xFF444444;
-                    } else if (pixelValue >= 4) {
-                        pixelColor = 0xFF111111;
-                    }
-
-                    guiGraphics.fill(drawPixelX, drawPixelY, drawPixelX + this.scale, drawPixelY + this.scale, pixelColor);
-                }
-            }
-        }
         guiGraphics.pose().popPose();
 
         super.render(guiGraphics, mouseX, mouseY, partialTick);
