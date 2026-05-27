@@ -53,7 +53,7 @@ public class SketchbookItem extends Item {
                 if (pages.size() < 16) {
 
                     // Создаем чистый холст ВАЖНО: Размеры строго как в вашем SketchbookScreen (63*2=126 и 96*2=192)
-                    byte[][] emptyPixels = new byte[1][2];
+                    int[][] emptyPixels = new int[1][2];
                     pages.add(net.avizvul.esquissemod.component.SketchData.fromArray(emptyPixels));
 
                     // Обновляем список страниц в предмете скетчбука

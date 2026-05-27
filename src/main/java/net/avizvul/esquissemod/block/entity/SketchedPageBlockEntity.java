@@ -9,7 +9,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class SketchedPageBlockEntity extends BlockEntity {
-    private SketchData sketchData = SketchData.fromArray(new byte[][]{});
+    private SketchData sketchData = SketchData.fromArray(new int[][]{});
     private int rotation = 0; // Переменная вращения
 
     public SketchedPageBlockEntity(BlockPos pos, BlockState state) {

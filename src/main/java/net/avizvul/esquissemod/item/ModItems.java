@@ -57,7 +57,7 @@ public class ModItems {
         for (int i = 0; i < count; i++) {
             // ВАЖНО: Замените 64 и 128 на ВАШИ реальные размеры холста,
             // иначе при подгрузке пустой страницы игра вылетит из-за несовпадения размеров!
-            byte[][] emptyPixels = new byte[64][128];
+            int[][] emptyPixels = new int[64][128];
 
             list.add(net.avizvul.esquissemod.component.SketchData.fromArray(emptyPixels));
         }

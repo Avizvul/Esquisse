@@ -52,7 +52,7 @@ public class SketchbookScreen extends Screen {
 
     // 1 = 2H (Светлый), 2 = HB (Средний), 3 = 4B (Черный)
     private byte currentHardness = 3;
-    private byte[][] pixels = new byte[canvasWidth * resolutionMultiplier][canvasHeight * resolutionMultiplier];
+    private int[][] pixels = new int[canvasWidth * resolutionMultiplier][canvasHeight * resolutionMultiplier];
     private int brushSize = 1;
     // Массив для запоминания пикселей текущего штриха
     private boolean[][] strokePixels;
@@ -133,7 +133,7 @@ public class SketchbookScreen extends Screen {
                 // Если нет (скетчбук новый), создаем 16 пустых страниц
                 this.pages = new ArrayList<>();
 
-                SketchData emptyData = SketchData.fromArray(new byte[this.canvasWidth * this.resolutionMultiplier][this.canvasHeight * this.resolutionMultiplier]);
+                SketchData emptyData = SketchData.fromArray(new int[this.canvasWidth * this.resolutionMultiplier][this.canvasHeight * this.resolutionMultiplier]);
 
                 for (int i = 0; i < 16; i++) {
                     this.pages.add(emptyData);
@@ -389,7 +389,7 @@ public class SketchbookScreen extends Screen {
 
         for (int x = 0; x < this.canvasWidth * this.resolutionMultiplier; x++) {
             for (int y = 0; y < this.canvasHeight * this.resolutionMultiplier; y++) {
-                byte pixelValue = pixels[x][y];
+                int pixelValue = pixels[x][y];
 
                 // ВАЖНО: Рисуем только в том случае, если на бумаге есть след от карандаша
                 if (pixelValue > 0) {

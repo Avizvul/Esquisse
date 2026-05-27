@@ -108,7 +108,7 @@ public class SketchbookPayloadHandler {
     private static List<SketchData> createEmptyPages() {
         List<SketchData> pages = new ArrayList<>();
 
-        SketchData emptyData = SketchData.fromArray(new byte[1][2]); // Создаем пустой холст
+        SketchData emptyData = SketchData.fromArray(new int[1][2]); // Создаем пустой холст
 
         for (int i = 0; i < 16; i++) {
             pages.add(emptyData);

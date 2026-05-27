@@ -22,29 +22,30 @@ public class ClientModEvents {
     @SubscribeEvent
     public static void registerItemColors(net.neoforged.neoforge.client.event.RegisterColorHandlersEvent.Item event) {
         event.register((stack, tintIndex) -> {
-            // tintIndex соответствует слоям текстуры в JSON модели.
-            // layer0 (корпус) имеет индекс 0, layer1 (грифель) имеет индекс 1.
-
-            if (tintIndex == 1) { // Красим ТОЛЬКО слой грифеля (layer1)
+            // Красим ТОЛЬКО слой грифеля (layer1)
+            if (tintIndex == 1) {
                 if (stack.has(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get())) {
                     java.util.List<Integer> colors = stack.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
 
                     if (!colors.isEmpty()) {
                         int activeIndex = stack.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
-                        int colorId = colors.get(activeIndex % colors.size());
 
-                        // Возвращаем цвет красителя в формате RGB.
-                        // Minecraft сам наложит этот цвет на белую текстуру грифеля.
-                        return net.minecraft.world.item.DyeColor.byId(colorId).getTextColor();
+                        // Защита от сбоя рендера (Math.abs исключает отрицательные индексы)
+                        int safeIndex = Math.abs(activeIndex) % colors.size();
+                        int colorId = colors.get(safeIndex);
+
+                        // ИСПРАВЛЕНИЕ 1: ПРАВИЛЬНЫЙ МЕТОД - getTextureDiffuseColor()
+                        // ИСПРАВЛЕНИЕ 2: Обязательно накладываем маску | 0xFF000000 для полной непрозрачности
+                        return net.minecraft.world.item.DyeColor.byId(colorId).getTextureDiffuseColor() | 0xFF000000;
                     }
                 }
-                // Если красителей внутри нет, возвращаем белый (или серый) цвет по умолчанию
+                // Цвет по умолчанию для пустого карандаша (непрозрачный серый)
                 return 0xFFDDDDDD;
             }
 
-            // Для слоя 0 (деревянный корпус) возвращаем -1, чтобы игра отрисовала его как есть, без фильтров
+            // Для деревянного корпуса (layer0) возвращаем -1, чтобы игра его не фильтровала
             return -1;
-        }, ModItems.COLOR_PENCIL.get());
+        }, net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get());
     }
 
     @SubscribeEvent

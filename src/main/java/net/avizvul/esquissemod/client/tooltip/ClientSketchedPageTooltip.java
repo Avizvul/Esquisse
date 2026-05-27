@@ -11,7 +11,7 @@ public class ClientSketchedPageTooltip implements ClientTooltipComponent {
     private static final net.minecraft.resources.ResourceLocation PAGE_TEX =
             net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/sketched_page_gui.png");
 
-    private final byte[][] pixels;
+    private final int[][] pixels;
     private final int canvasWidth = 63;
     private final int canvasHeight = 96;
     private final int scale = 1; // Масштаб 1 для миниатюры
@@ -49,7 +49,7 @@ public class ClientSketchedPageTooltip implements ClientTooltipComponent {
 
         for (int px = 0; px < this.canvasWidth * this.resolutionMultiplier; px++) {
             for (int py = 0; py < this.canvasHeight * this.resolutionMultiplier; py++) {
-                byte pixelValue = this.pixels[px][py];
+                int pixelValue = this.pixels[px][py];
 
                 if (pixelValue > 0) {
                     int drawPixelX = px * this.scale;

@@ -60,11 +60,11 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
         drawQuad(matrix, consumer, 0, 0, 0.0f, 126, 192, 0.0f, 0.0f, 1.0f, 1.0f, 0xFFFFFFFF, packedLight);
 
         // --- ОТРИСОВКА ПИКСЕЛЕЙ ---
-        byte[][] pixels = data.toArray(126, 192);
+        int[][] pixels = data.toArray(126, 192);
 
         for (int x = 0; x < 126; x++) {
             for (int y = 0; y < 192; y++) {
-                byte val = pixels[x][y];
+                int val = pixels[x][y];
                 if (val > 0) {
                     int color = 0xFF000000;
                     if (val == 1) color = 0xFFCCCCCC;

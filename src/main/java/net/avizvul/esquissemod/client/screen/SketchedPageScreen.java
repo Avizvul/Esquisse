@@ -20,7 +20,7 @@ public class SketchedPageScreen extends Screen {
     private final int scale = 3;
     private final int resolutionMultiplier = 2;
 
-    private byte[][] pixels;
+    private int[][] pixels;
 
     public SketchedPageScreen(ItemStack stack) {
         super(Component.literal("Sketched Page"));
@@ -31,7 +31,7 @@ public class SketchedPageScreen extends Screen {
             // Обязательно передаем правильные прямоугольные размеры!
             this.pixels = data.toArray(this.canvasWidth * this.resolutionMultiplier, this.canvasHeight * this.resolutionMultiplier);
         } else {
-            this.pixels = new byte[this.canvasWidth * this.resolutionMultiplier][this.canvasHeight * this.resolutionMultiplier];
+            this.pixels = new int[this.canvasWidth * this.resolutionMultiplier][this.canvasHeight * this.resolutionMultiplier];
         }
     }
 
@@ -76,7 +76,7 @@ public class SketchedPageScreen extends Screen {
         // Проходимся двумя независимыми переменными: шириной (63) и высотой (96)
         for (int x = 0; x < this.canvasWidth * this.resolutionMultiplier; x++) {
             for (int y = 0; y < this.canvasHeight * this.resolutionMultiplier; y++) {
-                byte pixelValue = pixels[x][y];
+                int pixelValue = pixels[x][y];
 
                 if (pixelValue > 0) {
                     int drawPixelX = scaledCanvasLeft + (x * this.scale);
