@@ -2,8 +2,10 @@ package net.avizvul.esquissemod.item;
 
 import net.avizvul.esquissemod.EsquisseMod;
 import net.avizvul.esquissemod.component.ModDataComponents; // Убедитесь, что импорт правильный для вашего компонента
+import net.avizvul.esquissemod.item.custom.MulticolorPencilItem;
 import net.avizvul.esquissemod.item.custom.SketchbookItem;
 import net.avizvul.esquissemod.item.custom.SketchedPageItem;
+import net.avizvul.esquissemod.item.custom.base.DrawingToolItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -23,14 +25,25 @@ public class ModItems {
     public static final DeferredItem<Item> SKETCHED_PAGE = ITEMS.register("sketched_page",
             () -> new SketchedPageItem(new Item.Properties().stacksTo(1)));
 
+    public static final DeferredItem<Item> COLOR_PENCIL = ITEMS.register("color_pencil",
+            () -> new MulticolorPencilItem(new Item.Properties()
+                    .durability(256)
+                    // Инициализируем пустой список цветов и нулевой индекс при выдаче предмета
+                    .component(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>())
+                    .component(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0)
+            ));
+
     public static final DeferredItem<Item> PENCIL = ITEMS.register("pencil",
-            () -> new Item(new Item.Properties().durability(256)));
+            () -> new DrawingToolItem(new Item.Properties().durability(256)) {
+            });
 
     public static final DeferredItem<Item> ERASER = ITEMS.register("eraser",
-            () -> new Item(new Item.Properties().durability(256)));
+            () -> new DrawingToolItem(new Item.Properties().durability(256)) {
+            });
 
     public static final DeferredItem<Item> EMPTY_PAGE = ITEMS.register("empty_page",
-            () -> new Item(new Item.Properties().stacksTo(16)));
+            () -> new DrawingToolItem(new Item.Properties().stacksTo(16)) {
+            });
 
 
     public static void register(IEventBus eventBus){
