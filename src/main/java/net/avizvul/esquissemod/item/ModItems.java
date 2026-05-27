@@ -35,15 +35,34 @@ public class ModItems {
 
     public static final DeferredItem<Item> PENCIL = ITEMS.register("pencil",
             () -> new DrawingToolItem(new Item.Properties().durability(256)) {
+                @Override
+                public net.minecraft.resources.ResourceLocation getGuiTexture() {
+                    return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_pencil.png");
+                }
+
+                // Если карандаш длиннее/шире, просто переопределяем методы:
+                @Override
+                public int getGuiWidth() { return 16; } // Например, оставим 16
+
+                @Override
+                public int getPeekHeight() { return 12; } // Пусть обычный карандаш выглядывает сильнее!
             });
 
     public static final DeferredItem<Item> ERASER = ITEMS.register("eraser",
             () -> new DrawingToolItem(new Item.Properties().durability(256)) {
+                @Override
+                public net.minecraft.resources.ResourceLocation getGuiTexture() {
+                    return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_eraser.png");
+                }
+
+                @Override
+                public int getPeekHeight() { return 6; } // А ластик пусть торчит поменьше
             });
 
-    public static final DeferredItem<Item> EMPTY_PAGE = ITEMS.register("empty_page",
-            () -> new DrawingToolItem(new Item.Properties().stacksTo(16)) {
-            });
+    public net.minecraft.resources.ResourceLocation getGuiTexture() {
+        // Базовая текстура без цвета (цвет мы всё так же будем накладывать поверх неё в GUI)
+        return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_color_pencil.png");
+    }
 
 
     public static void register(IEventBus eventBus){

@@ -29,7 +29,7 @@ public class SketchbookScreen extends Screen {
     private static final ResourceLocation ROTATE_BTN_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_rotate.png");
     private static final ResourceLocation PAGE_B_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_page_b.png");
     private static final ResourceLocation PAGE_F_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_page_f.png");
-    private static final ResourceLocation COLOR_PENCIL_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_color_pencil.png");
+    private static final ResourceLocation COLOR_PENCIL_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_color_pencil_base.png");
     private static final ResourceLocation COLOR_PENCIL_TINT_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_color_pencil_tint.png");
 
     private enum Tool { PENCIL, COLOR_PENCIL, ERASER }
@@ -168,18 +168,19 @@ public class SketchbookScreen extends Screen {
     }
 
     // Компактная структура для хранения координат кнопок инструментов
-    private record ToolButtonCoords(int scaledBtnWidth, int scaledBtnHeight, int pencilX, int eraserX, int peekY) {}
+    private record ToolButtonCoords(int scaledBtnWidth, int scaledBtnHeight, int pencilX, int colorPencilX, int eraserX, int peekY) {}
 
     // Вспомогательный метод для расчета
     private ToolButtonCoords getToolButtonCoords() {
         int scaledBtnWidth = this.buttonWidth * this.buttonScale;
         int scaledBtnHeight = this.buttonHeight * this.buttonScale;
+
         int pencilX = (this.width / 2) + 100;
         int colorPencilX = pencilX + scaledBtnWidth + 5;
         int eraserX = colorPencilX + scaledBtnWidth + 5;
         int peekY = this.height - scaledBtnHeight;
 
-        return new ToolButtonCoords(scaledBtnWidth, scaledBtnHeight, pencilX, eraserX, peekY);
+        return new ToolButtonCoords(scaledBtnWidth, scaledBtnHeight, pencilX, colorPencilX, eraserX, peekY);
     }
 
     private void loadPagePixels() {
@@ -467,6 +468,7 @@ public class SketchbookScreen extends Screen {
         ToolButtonCoords toolCoords = getToolButtonCoords();
         int scaledBtnWidth = toolCoords.scaledBtnWidth();
         int pencilX = toolCoords.pencilX();
+        int scaledBtnHeight = toolCoords.scaledBtnHeight();
         int colorPencilX = toolCoords.colorPencilX();
         int eraserX = toolCoords.eraserX();
         int peekY = toolCoords.peekY();
@@ -689,13 +691,16 @@ public class SketchbookScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         boolean hasPencil = hasTool(ModItems.PENCIL.get());
         boolean hasEraser = hasTool(ModItems.ERASER.get());
+        ItemStack colorPencilStack = getColorPencilStack();
+        boolean hasColorPencil = !colorPencilStack.isEmpty();
 
         ToolButtonCoords toolCoords = getToolButtonCoords();
         int scaledBtnWidth = toolCoords.scaledBtnWidth();
         int scaledBtnHeight = toolCoords.scaledBtnHeight();
         int pencilX = toolCoords.pencilX();
+        int colorPencilX = toolCoords.colorPencilX();
+        int eraserX = toolCoords.eraserX();
         int peekY = toolCoords.peekY();
-        int eraserX = toolCoords.eraserX;
 
         // 1. Проверяем клики по инструментам интерфейса (только ЛКМ)
         if (button == 0) {
@@ -974,6 +979,17 @@ public class SketchbookScreen extends Screen {
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private net.minecraft.world.item.ItemStack getColorPencilStack() {
+        if (this.minecraft == null || this.minecraft.player == null) return net.minecraft.world.item.ItemStack.EMPTY;
+        for (net.minecraft.world.item.ItemStack st : this.minecraft.player.getInventory().items) {
+            if (st.is(ModItems.COLOR_PENCIL.get())) return st;
+        }
+        for (net.minecraft.world.item.ItemStack st : this.minecraft.player.getInventory().offhand) {
+            if (st.is(ModItems.COLOR_PENCIL.get())) return st;
+        }
+        return net.minecraft.world.item.ItemStack.EMPTY;
     }
 
     @Override
