@@ -59,6 +59,9 @@ public class ModItems {
                 public int getPeekHeight() { return 6; } // А ластик пусть торчит поменьше
             });
 
+    public static final DeferredItem<Item> EMPTY_PAGE = ITEMS.register("empty_page",
+            () -> new Item(new Item.Properties().stacksTo(16)));
+
     public net.minecraft.resources.ResourceLocation getGuiTexture() {
         // Базовая текстура без цвета (цвет мы всё так же будем накладывать поверх неё в GUI)
         return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_color_pencil.png");

@@ -174,11 +174,23 @@ public class SketchbookScreen extends Screen {
     private ToolButtonCoords getToolButtonCoords() {
         int scaledBtnWidth = this.buttonWidth * this.buttonScale;
         int scaledBtnHeight = this.buttonHeight * this.buttonScale;
-
-        int pencilX = (this.width / 2) + 100;
-        int colorPencilX = pencilX + scaledBtnWidth + 5;
-        int eraserX = colorPencilX + scaledBtnWidth + 5;
         int peekY = this.height - scaledBtnHeight;
+
+        // Стартовая позиция (там, где раньше всегда был простой карандаш)
+        int startX = (this.width / 2) + 100;
+        int currentX = startX;
+
+        boolean hasPencil = hasTool(ModItems.PENCIL.get());
+        boolean hasColorPencil = !getColorPencilStack().isEmpty();
+        boolean hasEraser = hasTool(ModItems.ERASER.get());
+
+        // Если инструмента нет, уводим его за экран (-1000)
+        int pencilX = -1000, colorPencilX = -1000, eraserX = -1000;
+
+        // Поочередно назначаем координаты. Если инструмент есть, он занимает currentX, а следующий сдвигается правее.
+        if (hasPencil) { pencilX = currentX; currentX += scaledBtnWidth + 5; }
+        if (hasColorPencil) { colorPencilX = currentX; currentX += scaledBtnWidth + 5; }
+        if (hasEraser) { eraserX = currentX; currentX += scaledBtnWidth + 5; }
 
         return new ToolButtonCoords(scaledBtnWidth, scaledBtnHeight, pencilX, colorPencilX, eraserX, peekY);
     }
@@ -294,6 +306,10 @@ public class SketchbookScreen extends Screen {
         boolean hasPencil = hasTool(ModItems.PENCIL.get());
         boolean hasEraser = hasTool(ModItems.ERASER.get());
 
+        ItemStack colorPencilStack = getColorPencilStack();
+        boolean hasColorPencil = !colorPencilStack.isEmpty();
+        boolean hasColors = hasColorPencil && !colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>()).isEmpty();
+
         double cx = renderX + drawWidth / 2.0;
         double cy = renderY + drawHeight / 2.0;
 
@@ -402,8 +418,7 @@ public class SketchbookScreen extends Screen {
                 lMouseX >= canvasScreenLeft && lMouseX < (canvasScreenLeft + scaledCanvasWidth) &&
                 lMouseY >= renderY && lMouseY < (renderY + scaledImageHeight)) {
 
-            boolean canDraw = (this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.ERASER && hasEraser);
-
+            boolean canDraw = (this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors) || (this.activeTool == Tool.ERASER && hasEraser);
             if (canDraw) {
                 double physicalCellSize = (double) this.scale / this.resolutionMultiplier;
                 int centerX = (int) ((lMouseX - canvasScreenLeft) / physicalCellSize);
@@ -467,54 +482,42 @@ public class SketchbookScreen extends Screen {
         // --- 9. ИНСТРУМЕНТЫ И ИНДИКАТОРЫ ---
         ToolButtonCoords toolCoords = getToolButtonCoords();
         int scaledBtnWidth = toolCoords.scaledBtnWidth();
-        int pencilX = toolCoords.pencilX();
         int scaledBtnHeight = toolCoords.scaledBtnHeight();
+        int pencilX = toolCoords.pencilX();
         int colorPencilX = toolCoords.colorPencilX();
         int eraserX = toolCoords.eraserX();
         int peekY = toolCoords.peekY();
 
-        ItemStack colorPencilStack = getColorPencilStack();
-        boolean hasColorPencil = !colorPencilStack.isEmpty();
 
         // Рендер кнопок
         if (hasPencil) renderToolButton(guiGraphics, mouseX, mouseY, Tool.PENCIL, PENCIL_TEX, pencilX);
         if (hasColorPencil) renderColorToolButton(guiGraphics, mouseX, mouseY, colorPencilX, colorPencilStack);
         if (hasEraser) renderToolButton(guiGraphics, mouseX, mouseY, Tool.ERASER, ERASER_TEX, eraserX);
 
-        // Индикаторы размера кисти и палитра
+        // Индикаторы размера кисти, палитра и текст "Empty"
         if (this.activeTool == Tool.PENCIL && hasPencil) {
             renderSizeIndicators(guiGraphics, mouseX, mouseY, pencilX, peekY);
-
-            // Текст твердости (2H, HB, 4B)
-            String hardnessText = (this.currentHardness == 1) ? "2H" : (this.currentHardness == 2) ? "HB" : "4B";
-            int hardnessColor = (this.currentHardness == 1) ? 0xFFAAAAAA : (this.currentHardness == 2) ? 0xFF555555 : 0xFF222222;
-            int hX = pencilX + (scaledBtnWidth / 2) - (this.font.width(hardnessText) / 2);
-            guiGraphics.drawString(this.font, hardnessText, hX, peekY - 24, hardnessColor, false);
-
         } else if (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil) {
-            renderSizeIndicators(guiGraphics, mouseX, mouseY, colorPencilX, peekY);
-
-            // Отрисовка палитры только если выбран цветной карандаш
-            java.util.List<Integer> colors = colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
-            if (!colors.isEmpty()) {
-                int activeIndex = colorPencilStack.getOrDefault(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
-                int safeIndex = Math.abs(activeIndex) % colors.size();
-                int swatchSize = 12;
-                int spacing = 4;
-                int paletteX = eraserX + scaledBtnWidth + 10; // Смещаем палитру за ластик
-                int paletteY = peekY + (scaledBtnHeight / 2) - (swatchSize / 2);
-
-                for (int i = 0; i < colors.size(); i++) {
-                    int colorId = colors.get(i);
-                    int rgb = net.minecraft.world.item.DyeColor.byId(colorId).getTextureDiffuseColor() | 0xFF000000;
-                    int drawX = paletteX + (i * (swatchSize + spacing));
-                    int outlineColor = (i == safeIndex) ? 0xFFFFFFFF : 0xFF444444;
-                    guiGraphics.fill(drawX - 1, paletteY - 1, drawX + swatchSize + 1, paletteY + swatchSize + 1, outlineColor);
-                    guiGraphics.fill(drawX, paletteY, drawX + swatchSize, paletteY + swatchSize, rgb);
-                }
+            if (hasColors) {
+                renderSizeIndicators(guiGraphics, mouseX, mouseY, colorPencilX, peekY);
+                renderPalette(guiGraphics, colorPencilStack);
+            } else {
+                // НОВОЕ: Если цветов нет, выводим красную надпись "Empty"
+                String emptyText = "Empty";
+                int emptyX = colorPencilX + (scaledBtnWidth / 2) - (this.font.width(emptyText) / 2);
+                guiGraphics.drawString(this.font, emptyText, emptyX, peekY - 24, 0xFFFF0000, false);
             }
         } else if (this.activeTool == Tool.ERASER && hasEraser) {
             renderSizeIndicators(guiGraphics, mouseX, mouseY, eraserX, peekY);
+        }
+
+        // Текст твердости (2H, HB, 4B) теперь рисуется только если инструмент может рисовать
+        if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors)) {
+            String hardnessText = (this.currentHardness == 1) ? "2H" : (this.currentHardness == 2) ? "HB" : "4B";
+            int hardnessColor = (this.currentHardness == 1) ? 0xFFAAAAAA : (this.currentHardness == 2) ? 0xFF555555 : 0xFF222222;
+            int activeX = (this.activeTool == Tool.PENCIL) ? pencilX : colorPencilX;
+            int hX = activeX + (scaledBtnWidth / 2) - (this.font.width(hardnessText) / 2);
+            guiGraphics.drawString(this.font, hardnessText, hX, peekY - 24, hardnessColor, false);
         }
 
         super.render(guiGraphics, mouseX, mouseY, partialTick);
@@ -569,6 +572,72 @@ public class SketchbookScreen extends Screen {
 
         // 4. ВАЖНО: Сбрасываем цвет графики обратно на белый, чтобы не покрасить весь остальной интерфейс!
         guiGraphics.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
+    // Структура для хранения координат одного квадратика цвета
+    private record Swatch(int index, int colorId, int x, int y) {}
+
+    // Метод, рассчитывающий круг и линию градиента
+    private java.util.List<Swatch> getPaletteLayout(net.minecraft.world.item.ItemStack colorPencilStack) {
+        java.util.List<Swatch> layout = new java.util.ArrayList<>();
+        java.util.List<Integer> colors = colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+        if (colors.isEmpty()) return layout;
+
+        java.util.List<Integer> grays = new java.util.ArrayList<>();
+        java.util.List<Integer> wheelColors = new java.util.ArrayList<>();
+
+        // Разделяем цвета: ID 0(Белый), 8(Светло-серый), 7(Серый), 15(Черный)
+        for (int i = 0; i < colors.size(); i++) {
+            int c = colors.get(i);
+            if (c == 0 || c == 8 || c == 7 || c == 15) grays.add(i);
+            else wheelColors.add(i);
+        }
+
+        // Центр цветового круга (в правом нижнем углу экрана)
+        int centerX = this.width - 50;
+        int centerY = this.height - 70;
+        int radius = 22; // Радиус круга
+
+        // 1. Строим цветовой круг
+        for (int i = 0; i < wheelColors.size(); i++) {
+            int originalIndex = wheelColors.get(i);
+            double angle = 2 * Math.PI * i / wheelColors.size() - Math.PI / 2;
+            int x = centerX + (int) (Math.cos(angle) * radius);
+            int y = centerY + (int) (Math.sin(angle) * radius);
+            layout.add(new Swatch(originalIndex, colors.get(originalIndex), x, y));
+        }
+
+        // 2. Строим линию серых оттенков (под кругом)
+        int grayY = centerY + radius + 15;
+        int swatchSize = 12;
+        int spacing = 4;
+        int startX = centerX - (grays.size() * (swatchSize + spacing)) / 2; // Центрируем линию
+
+        for (int i = 0; i < grays.size(); i++) {
+            int originalIndex = grays.get(i);
+            int x = startX + (i * (swatchSize + spacing));
+            layout.add(new Swatch(originalIndex, colors.get(originalIndex), x, grayY));
+        }
+
+        return layout;
+    }
+
+    // Метод отрисовки палитры
+    private void renderPalette(GuiGraphics guiGraphics, net.minecraft.world.item.ItemStack colorPencilStack) {
+        if (this.activeTool != Tool.COLOR_PENCIL || colorPencilStack.isEmpty()) return;
+
+        int activeIndex = Math.abs(colorPencilStack.getOrDefault(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0));
+        java.util.List<Integer> colors = colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+        int safeIndex = colors.isEmpty() ? 0 : activeIndex % colors.size();
+        int swatchSize = 12;
+
+        for (Swatch swatch : getPaletteLayout(colorPencilStack)) {
+            int rgb = net.minecraft.world.item.DyeColor.byId(swatch.colorId()).getTextureDiffuseColor() | 0xFF000000;
+            int outlineColor = (swatch.index() == safeIndex) ? 0xFFFFFFFF : 0xFF444444;
+
+            guiGraphics.fill(swatch.x() - 1, swatch.y() - 1, swatch.x() + swatchSize + 1, swatch.y() + swatchSize + 1, outlineColor);
+            guiGraphics.fill(swatch.x(), swatch.y(), swatch.x() + swatchSize, swatch.y() + swatchSize, rgb);
+        }
     }
 
     // Отрисовка индикаторов размера (лесенка: 3x3, 5x5, 7x7)
@@ -656,6 +725,15 @@ public class SketchbookScreen extends Screen {
                                 }
                             }
 
+                            if (this.activeTool == Tool.COLOR_PENCIL && !colorPencil.isEmpty()) {
+                                java.util.List<Integer> colors = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+                                if (!colors.isEmpty()) {
+                                    int activeIndex = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
+                                    int colorId = colors.get(Math.abs(activeIndex) % colors.size());
+                                    brushRgb = net.minecraft.world.item.DyeColor.byId(colorId).getTextureDiffuseColor();
+                                }
+                            }
+
                             // Если рисуем многоцветным карандашом - достаем активный цвет
                             if (!colorPencil.isEmpty()) {
                                 java.util.List<Integer> colors = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
@@ -693,6 +771,8 @@ public class SketchbookScreen extends Screen {
         boolean hasEraser = hasTool(ModItems.ERASER.get());
         ItemStack colorPencilStack = getColorPencilStack();
         boolean hasColorPencil = !colorPencilStack.isEmpty();
+        // Определяем, есть ли цвета
+        boolean hasColors = hasColorPencil && !colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>()).isEmpty();
 
         ToolButtonCoords toolCoords = getToolButtonCoords();
         int scaledBtnWidth = toolCoords.scaledBtnWidth();
@@ -704,14 +784,17 @@ public class SketchbookScreen extends Screen {
 
         // 1. Проверяем клики по инструментам интерфейса (только ЛКМ)
         if (button == 0) {
-
             int baseY = this.height - (scaledBtnHeight / 2);
-
             int pencilY = (this.activeTool == Tool.PENCIL) ? peekY : baseY;
+            int colorPencilY = (this.activeTool == Tool.COLOR_PENCIL) ? peekY : baseY;
             int eraserY = (this.activeTool == Tool.ERASER) ? peekY : baseY;
 
             if (hasPencil && mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth && mouseY >= pencilY && mouseY < pencilY + scaledBtnHeight) {
                 this.activeTool = Tool.PENCIL;
+                return true;
+            }
+            if (hasColorPencil && mouseX >= colorPencilX && mouseX < colorPencilX + scaledBtnWidth && mouseY >= colorPencilY && mouseY < colorPencilY + scaledBtnHeight) {
+                this.activeTool = Tool.COLOR_PENCIL;
                 return true;
             }
             if (hasEraser && mouseX >= eraserX && mouseX < eraserX + scaledBtnWidth && mouseY >= eraserY && mouseY < eraserY + scaledBtnHeight) {
@@ -722,11 +805,23 @@ public class SketchbookScreen extends Screen {
             // --- Проверка клика по индикаторам размера активного инструмента ---
             if (this.activeTool == Tool.PENCIL && hasPencil) {
                 if (handleSizeIndicatorClick(mouseX, mouseY, pencilX, peekY)) return true;
+            } else if (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil) {
+                // Если цветов нет, не даем кликать по индикаторам и палитре
+                if (hasColors) {
+                    if (handleSizeIndicatorClick(mouseX, mouseY, colorPencilX, peekY)) return true;
+
+                    int swatchSize = 12;
+                    for (Swatch swatch : getPaletteLayout(colorPencilStack)) {
+                        if (mouseX >= swatch.x() && mouseX <= swatch.x() + swatchSize && mouseY >= swatch.y() && mouseY <= swatch.y() + swatchSize) {
+                            colorPencilStack.set(ModDataComponents.ACTIVE_COLOR_INDEX.get(), swatch.index());
+                            return true;
+                        }
+                    }
+                }
             } else if (this.activeTool == Tool.ERASER && hasEraser) {
                 if (handleSizeIndicatorClick(mouseX, mouseY, eraserX, peekY)) return true;
             }
         }
-
         // 2. Получаем логические координаты для холста и кнопок на нём
         double[] logicalMouse = getLogicalMouse(mouseX, mouseY);
         double lMouseX = logicalMouse[0];
@@ -815,6 +910,46 @@ public class SketchbookScreen extends Screen {
             }
         }
 
+        // 1. Проверяем клики по инструментам интерфейса (только ЛКМ)
+        if (button == 0) {
+            int baseY = this.height - (scaledBtnHeight / 2);
+            int pencilY = (this.activeTool == Tool.PENCIL) ? peekY : baseY;
+            int colorPencilY = (this.activeTool == Tool.COLOR_PENCIL) ? peekY : baseY; // ДОБАВЛЕНО
+            int eraserY = (this.activeTool == Tool.ERASER) ? peekY : baseY;
+
+            if (hasPencil && mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth && mouseY >= pencilY && mouseY < pencilY + scaledBtnHeight) {
+                this.activeTool = Tool.PENCIL;
+                return true;
+            }
+            // ДОБАВЛЕНО: Клик по кнопке цветного карандаша
+            if (hasColorPencil && mouseX >= colorPencilX && mouseX < colorPencilX + scaledBtnWidth && mouseY >= colorPencilY && mouseY < colorPencilY + scaledBtnHeight) {
+                this.activeTool = Tool.COLOR_PENCIL;
+                return true;
+            }
+            if (hasEraser && mouseX >= eraserX && mouseX < eraserX + scaledBtnWidth && mouseY >= eraserY && mouseY < eraserY + scaledBtnHeight) {
+                this.activeTool = Tool.ERASER;
+                return true;
+            }
+
+            // --- Проверка клика по индикаторам размера активного инструмента ---
+            if (this.activeTool == Tool.PENCIL && hasPencil) {
+                if (handleSizeIndicatorClick(mouseX, mouseY, pencilX, peekY)) return true;
+            } else if (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil) {
+                if (handleSizeIndicatorClick(mouseX, mouseY, colorPencilX, peekY)) return true;
+
+                // Обработка клика по палитре цветов!
+                int swatchSize = 12;
+                for (Swatch swatch : getPaletteLayout(colorPencilStack)) {
+                    if (mouseX >= swatch.x() && mouseX <= swatch.x() + swatchSize && mouseY >= swatch.y() && mouseY <= swatch.y() + swatchSize) {
+                        colorPencilStack.set(ModDataComponents.ACTIVE_COLOR_INDEX.get(), swatch.index());
+                        return true;
+                    }
+                }
+            } else if (this.activeTool == Tool.ERASER && hasEraser) {
+                if (handleSizeIndicatorClick(mouseX, mouseY, eraserX, peekY)) return true;
+            }
+        }
+
         // 4. Логика, работающая только на ЛКМ (перетаскивание и рисование)
         if (button == 0) {
             int scaledFrameWidth = this.frameWidth * this.scale;
@@ -862,7 +997,7 @@ public class SketchbookScreen extends Screen {
 
                 if (lMouseX >= canvasScreenLeft && lMouseX < (canvasScreenLeft + scaledCanvasWidth)
                         && lMouseY >= renderY && lMouseY < (renderY + scaledImageHeight)) {
-                    if (this.activeTool == Tool.PENCIL && hasPencil) {
+                    if ((this.activeTool == Tool.PENCIL && hasColors) || (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil)) {
                         this.isDrawing = true;
                         drawPixel(lMouseX, lMouseY, false);
                     } else if (this.activeTool == Tool.ERASER && hasEraser) {
@@ -876,16 +1011,13 @@ public class SketchbookScreen extends Screen {
 
         // --- НОВОЕ: Обработка ПРАВОГО клика (ПКМ) по инструментам ---
         if (button == 1) {
-            if (hasTool(ModItems.PENCIL.get()) &&
-                    mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth &&
-                    mouseY >= peekY && mouseY < peekY + scaledBtnHeight) {
+            boolean clickedPencil = hasPencil && mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
+            boolean clickedColorPencil = hasColors && mouseX >= colorPencilX && mouseX < colorPencilX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
 
-                // Меняем твердость по кругу: 1 -> 2 -> 3 -> 1
+            if (clickedPencil || clickedColorPencil) {
                 this.currentHardness++;
-                if (this.currentHardness > 3) {
-                    this.currentHardness = 1;
-                }
-                return true; // Прерываем дальнейшую проверку клика
+                if (this.currentHardness > 3) this.currentHardness = 1;
+                return true;
             }
         }
 
@@ -939,16 +1071,20 @@ public class SketchbookScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        ItemStack colorPencilStack = getColorPencilStack();
+        boolean hasColorPencil = !colorPencilStack.isEmpty();
+        boolean hasColors = hasColorPencil && !colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>()).isEmpty();
+
         // Проверяем, зажат ли Shift
         if (Screen.hasShiftDown()) {
-            // Только для карандаша меняем твердость
-            if (this.activeTool == Tool.PENCIL && hasTool(ModItems.PENCIL.get())) {
-                if (scrollY > 0) { // Скролл ВВЕРХ (увеличиваем твердость)
-                    this.currentHardness++;
-                    if (this.currentHardness > 3) this.currentHardness = 3; // Ограничитель
-                } else if (scrollY < 0) { // Скролл ВНИЗ (уменьшаем твердость)
-                    this.currentHardness--;
-                    if (this.currentHardness < 1) this.currentHardness = 1; // Ограничитель
+            // Разрешаем смену твердости только если карандаш обычный или цветной с загруженными цветами!
+            if ((this.activeTool == Tool.PENCIL && hasTool(ModItems.PENCIL.get())) ||
+                    (this.activeTool == Tool.COLOR_PENCIL && hasColors)) {
+
+                if (scrollY > 0) {
+                    this.currentHardness = (byte) Math.min(3, this.currentHardness + 1);
+                } else if (scrollY < 0) {
+                    this.currentHardness = (byte) Math.max(1, this.currentHardness - 1);
                 }
                 return true;
             }

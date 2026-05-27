@@ -39,6 +39,7 @@ public class ModDataComponents {
             DATA_COMPONENT_TYPES.register("stored_colors", () ->
                     net.minecraft.core.component.DataComponentType.<java.util.List<Integer>>builder()
                             .persistent(com.mojang.serialization.Codec.INT.listOf()) // Автоматически создаст и сетевой кодек [3]
+                            .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.collection(java.util.ArrayList::new, net.minecraft.network.codec.ByteBufCodecs.INT))
                             .build()
             );
 
@@ -47,6 +48,7 @@ public class ModDataComponents {
             DATA_COMPONENT_TYPES.register("active_color_index", () ->
                     net.minecraft.core.component.DataComponentType.<Integer>builder()
                             .persistent(com.mojang.serialization.Codec.INT)
+                            .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.INT)
                             .build()
             );
 
@@ -67,6 +69,7 @@ public class ModDataComponents {
                             .networkSynchronized(SketchData.STREAM_CODEC)
                             .build()
             );
+
     public static void register(IEventBus eventBus) {
         DATA_COMPONENT_TYPES.register(eventBus);
     }
