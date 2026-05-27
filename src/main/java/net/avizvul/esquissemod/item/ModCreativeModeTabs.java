@@ -22,6 +22,7 @@ public class ModCreativeModeTabs {
                         output.accept(ModItems.SKETCHBOOK);
                         output.accept(ModItems.PENCIL);
                         output.accept(ModItems.ERASER);
+                        output.accept(ModItems.COLOR_PENCIL);
                     }).build());
     public static void register(IEventBus eventBus) {
         CREATIVE_MODE_TAB.register(eventBus);

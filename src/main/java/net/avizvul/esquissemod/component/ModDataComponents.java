@@ -32,6 +32,24 @@ public class ModDataComponents {
                             .build()
             );
 
+    // --- КОМПОНЕНТЫ ДЛЯ МНОГОЦВЕТНОГО КАРАНДАША ---
+
+    // Хранит список ID загруженных красителей (от 0 до 15)
+    public static final Supplier<net.minecraft.core.component.DataComponentType<java.util.List<Integer>>> STORED_COLORS =
+            DATA_COMPONENT_TYPES.register("stored_colors", () ->
+                    net.minecraft.core.component.DataComponentType.<java.util.List<Integer>>builder()
+                            .persistent(com.mojang.serialization.Codec.INT.listOf()) // Автоматически создаст и сетевой кодек [3]
+                            .build()
+            );
+
+    // Хранит индекс текущего выбранного цвета из списка STORED_COLORS
+    public static final Supplier<net.minecraft.core.component.DataComponentType<Integer>> ACTIVE_COLOR_INDEX =
+            DATA_COMPONENT_TYPES.register("active_color_index", () ->
+                    net.minecraft.core.component.DataComponentType.<Integer>builder()
+                            .persistent(com.mojang.serialization.Codec.INT)
+                            .build()
+            );
+
     // --- КОМПОНЕНТ ДЛЯ ЗАПОМИНАНИЯ ПОСЛЕДНЕЙ СТРАНИЦЫ ---
     public static final Supplier<DataComponentType<Integer>> LAST_PAGE =
             DATA_COMPONENT_TYPES.register("last_page", () ->
