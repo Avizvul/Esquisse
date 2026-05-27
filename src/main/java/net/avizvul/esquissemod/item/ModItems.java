@@ -2,7 +2,7 @@ package net.avizvul.esquissemod.item;
 
 import net.avizvul.esquissemod.EsquisseMod;
 import net.avizvul.esquissemod.component.ModDataComponents; // Убедитесь, что импорт правильный для вашего компонента
-import net.avizvul.esquissemod.item.custom.MulticolorPencilItem;
+import net.avizvul.esquissemod.item.custom.ColorPencilItem;
 import net.avizvul.esquissemod.item.custom.SketchbookItem;
 import net.avizvul.esquissemod.item.custom.SketchedPageItem;
 import net.avizvul.esquissemod.item.custom.base.DrawingToolItem;
@@ -26,7 +26,7 @@ public class ModItems {
             () -> new SketchedPageItem(new Item.Properties().stacksTo(1)));
 
     public static final DeferredItem<Item> COLOR_PENCIL = ITEMS.register("color_pencil",
-            () -> new MulticolorPencilItem(new Item.Properties()
+            () -> new ColorPencilItem(new Item.Properties()
                     .durability(256)
                     // Инициализируем пустой список цветов и нулевой индекс при выдаче предмета
                     .component(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>())

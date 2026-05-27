@@ -13,9 +13,9 @@ import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MulticolorPencilItem extends DrawingToolItem {
+public class ColorPencilItem extends DrawingToolItem {
 
-    public MulticolorPencilItem(Properties properties) {
+    public ColorPencilItem(Properties properties) {
         super(properties);
     }
 
@@ -37,6 +37,9 @@ public class MulticolorPencilItem extends DrawingToolItem {
 
                     // Обновляем компонент предмета
                     stack.set(ModDataComponents.STORED_COLORS.get(), colors);
+
+                    // СРАЗУ переключаем активный цвет на только что добавленный (он теперь последний в списке)
+                    stack.set(ModDataComponents.ACTIVE_COLOR_INDEX.get(), colors.size() - 1);
 
                     // Тратим 1 краситель с курсора [3]
                     other.shrink(1);

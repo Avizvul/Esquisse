@@ -3,6 +3,7 @@ package net.avizvul.esquissemod.client;
 import net.avizvul.esquissemod.EsquisseMod;
 import net.avizvul.esquissemod.client.tooltip.ClientSketchedPageTooltip;
 import net.avizvul.esquissemod.client.tooltip.SketchedPageTooltipData;
+import net.avizvul.esquissemod.item.ModItems;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -38,12 +39,12 @@ public class ClientModEvents {
                     }
                 }
                 // Если красителей внутри нет, возвращаем белый (или серый) цвет по умолчанию
-                return 0xDDDDDD;
+                return 0xFFDDDDDD;
             }
 
             // Для слоя 0 (деревянный корпус) возвращаем -1, чтобы игра отрисовала его как есть, без фильтров
             return -1;
-        }, net.avizvul.esquissemod.item.ModItems.PENCIL.get());
+        }, ModItems.COLOR_PENCIL.get());
     }
 
     @SubscribeEvent
