@@ -855,7 +855,7 @@ public class SketchbookScreen extends Screen {
 
 
         // --- ЛОГИКА ОТРЫВА СТРАНИЦЫ ---
-        if (button == 0 && lMouseX >= blueZoneLeft && lMouseX <= blueZoneRight && lMouseY >= blueZoneTop && lMouseY <= blueZoneBottom) {
+        if (button == 1 && lMouseX >= blueZoneLeft && lMouseX <= blueZoneRight && lMouseY >= blueZoneTop && lMouseY <= blueZoneBottom) {
 
             // --- ИСПРАВЛЕНИЕ 1: Оборачиваем сырой массив пикселей в объект SketchData ---
             net.neoforged.neoforge.network.PacketDistributor.sendToServer(
