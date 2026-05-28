@@ -84,6 +84,9 @@ public class SketchbookScreen extends Screen {
     private List<SketchData> pages = new ArrayList<>();
     private int currentPageIndex = 0;
     private static int savedPageIndex = 0; // Чтобы запоминать страницу при закрытии
+    private net.minecraft.client.renderer.texture.DynamicTexture activeCanvasTexture;
+    private net.minecraft.resources.ResourceLocation activeCanvasId;
+    private boolean isCanvasDirty = true;
 
 
     public SketchbookScreen() {
@@ -200,6 +203,8 @@ public class SketchbookScreen extends Screen {
             SketchData data = this.pages.get(this.currentPageIndex);
             this.pixels = data.toArray(this.canvasWidth * this.resolutionMultiplier, this.canvasHeight * this.resolutionMultiplier);
         }
+
+        this.isCanvasDirty = true;
     }
 
     public void turnPage(int newPageIndex) {
@@ -233,6 +238,8 @@ public class SketchbookScreen extends Screen {
         int w = this.canvasWidth * this.resolutionMultiplier;
         int h = this.canvasHeight * this.resolutionMultiplier;
         this.pixels = pages.get(this.currentPageIndex).toArray(w, h);
+
+        this.isCanvasDirty = true;
     }
 
     private void clampSketchbook() {
@@ -400,15 +407,22 @@ public class SketchbookScreen extends Screen {
         int canvasScreenLeft = renderX + ((this.frameWidth + this.deadZoneWidth) * this.scale);
         int canvasScreenTop = renderY;
 
-        guiGraphics.pose().pushPose(); // НАЧАЛО МАСШТАБА ПИКСЕЛЕЙ
+        // --- НОВЫЙ РЕНДЕР ХОЛСТА ЧЕРЕЗ ТЕКСТУРУ ---
+        if (this.isCanvasDirty) updateActiveCanvasTexture();
+        if (this.activeCanvasId != null) {
+            com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+            int screenWidth = this.canvasWidth * this.scale;
+            int screenHeight = this.canvasHeight * this.scale;
+            guiGraphics.blit(this.activeCanvasId, canvasScreenLeft, canvasScreenTop, 0.0f, 0.0f, screenWidth, screenHeight, screenWidth, screenHeight);
+            com.mojang.blaze3d.systems.RenderSystem.disableBlend();
+        }
+
+        // Предпросмотр кисти всё еще требует масштаба
+        guiGraphics.pose().pushPose();
         float resScale = 1.0f / this.resolutionMultiplier;
         guiGraphics.pose().scale(resScale, resScale, 1.0f);
-
         int scaledCanvasLeft = canvasScreenLeft * this.resolutionMultiplier;
         int scaledCanvasTop = canvasScreenTop * this.resolutionMultiplier;
-
-        // Отрисовываем сам рисунок
-        net.avizvul.esquissemod.client.ClientRenderUtils.renderSketchPixels(guiGraphics, this.pixels, scaledCanvasLeft, scaledCanvasTop, this.scale);
 
         // --- 7. ПРЕДПРОСМОТР КИСТИ ---
         int scaledCanvasWidth = this.canvasWidth * this.scale;
@@ -710,6 +724,7 @@ public class SketchbookScreen extends Screen {
                     if (isEraser) {
                         if (pixels[x][y] != 0) {
                             pixels[x][y] = 0;
+                            this.isCanvasDirty = true;
                             this.eraserPixelsUsed++;
                         }
                     } else {
@@ -754,6 +769,7 @@ public class SketchbookScreen extends Screen {
 
                             // Применяем
                             if (pixels[x][y] != blendedColor) {
+                                this.isCanvasDirty = true;
                                 pixels[x][y] = blendedColor;
                                 this.pencilPixelsUsed++;
                                 this.strokePixels[x][y] = true;
@@ -1160,6 +1176,39 @@ public class SketchbookScreen extends Screen {
         SketchData data = SketchData.fromArray(this.pixels);
         // Вы уже правильно передаете this.currentPageIndex в пакет!
         PacketDistributor.sendToServer(new SketchbookSavePayload(this.currentPageIndex, data, this.pencilPixelsUsed, this.eraserPixelsUsed));
+        if (this.activeCanvasId != null) {
+            net.minecraft.client.Minecraft.getInstance().getTextureManager().release(this.activeCanvasId);
+            this.activeCanvasTexture.close();
+        }
+
         super.onClose();
+    }
+
+    private void updateActiveCanvasTexture() {
+        if (this.activeCanvasTexture == null) {
+            com.mojang.blaze3d.platform.NativeImage image = new com.mojang.blaze3d.platform.NativeImage(126, 192, true);
+            this.activeCanvasTexture = new net.minecraft.client.renderer.texture.DynamicTexture(image);
+            this.activeCanvasId = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("esquissemod", "active_canvas_" + java.util.UUID.randomUUID().toString().substring(0, 8));
+            net.minecraft.client.Minecraft.getInstance().getTextureManager().register(this.activeCanvasId, this.activeCanvasTexture);
+        }
+        com.mojang.blaze3d.platform.NativeImage image = this.activeCanvasTexture.getPixels();
+        if (image != null) {
+            for (int x = 0; x < 126; x++) {
+                for (int y = 0; y < 192; y++) {
+                    int argb = this.pixels[x][y];
+                    if (argb != 0) {
+                        int a = (argb >> 24) & 0xFF;
+                        int r = (argb >> 16) & 0xFF;
+                        int g = (argb >> 8) & 0xFF;
+                        int b = argb & 0xFF;
+                        image.setPixelRGBA(x, y, (a << 24) | (b << 16) | (g << 8) | r);
+                    } else {
+                        image.setPixelRGBA(x, y, 0); // Чистим стертые пиксели
+                    }
+                }
+            }
+            this.activeCanvasTexture.upload();
+        }
+        this.isCanvasDirty = false;
     }
 }

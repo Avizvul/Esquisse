@@ -76,28 +76,11 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
         drawQuad(pose, bgConsumer, 0, 0, 0.0f, 126, 192, 0.0f, 0.0f, 1.0f, 1.0f, 0xFFFFFFFF, packedLight);
 
         // --- ПИКСЕЛИ (Рисунок) ---
-        VertexConsumer pixelConsumer = bufferSource.getBuffer(RenderType.entityTranslucentCull(PAGE_TEX));
-        int[][] pixels = data.toArray(126, 192);
-
-        // Точно так же меняем порядок: сначала Y, потом X
-        for (int y = 0; y < 192; y++) {
-            for (int x = 0; x < 126; x++) {
-                int pixelColor = pixels[x][y];
-                if (pixelColor != 0) {
-                    int startPixelX = x;
-
-                    // Собираем пиксели одного цвета в одну горизонтальную полоску
-                    while (x + 1 < 126 && pixels[x + 1][y] == pixelColor) {
-                        x++;
-                    }
-
-                    float segmentWidth = (x - startPixelX + 1);
-
-                    // Z = +0.01f. Пиксели выдвигаются БЛИЖЕ к игроку поверх бумаги
-                    // Передаем segmentWidth вместо 1 для ширины
-                    drawQuad(pose, pixelConsumer, startPixelX, y, 0.01f, segmentWidth, 1, 0.1f, 0.1f, 0.11f, 0.11f, pixelColor, packedLight);
-                }
-            }
+        net.minecraft.resources.ResourceLocation sketchTexture = net.avizvul.esquissemod.client.SketchTextureCache.getOrCreateTexture(data);
+        if (sketchTexture != null) {
+            VertexConsumer pixelConsumer = bufferSource.getBuffer(RenderType.entityTranslucentCull(sketchTexture));
+            // Рисуем один-единственный полигон на весь холст! FPS больше падать не будет.
+            drawQuad(pose, pixelConsumer, 0, 0, 0.01f, 126, 192, 0.0f, 0.0f, 1.0f, 1.0f, 0xFFFFFFFF, packedLight);
         }
 
         poseStack.popPose();
