@@ -80,6 +80,32 @@ public class SketchbookScreen extends Screen {
     private static float savedRotationAngle = 0.0f;
     private static boolean hasSavedState = false;
 
+    // Текстура линейки
+    private static final ResourceLocation RULER_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/ruler.png");
+
+    // Размеры линейки (увеличили в 2 раза)
+    private final int rulerWidth = 398;
+    private final int rulerHeight = 40;
+
+    // Переменные текущего состояния
+    private boolean isRulerActive = false;
+    private double rulerX, rulerY; // Якорная точка (теперь это ЦЕНТР РАБОЧЕЙ ГРАНИ)
+    private float rulerAngle = 0.0f;
+    private boolean isRulerDragging = false;
+    private boolean isRulerRotating = false;
+
+    // НОВОЕ: Переменные для расширенного функционала
+    private double rulerAngleOffset = 0.0; // Для плавного вращения без рывков
+    private boolean isQuickRulerMode = false;
+    private double quickRulerStartX, quickRulerStartY;
+    private double lastMouseX, lastMouseY;
+
+    // Статические переменные для сохранения позиции
+    private static double savedRulerX = -1;
+    private static double savedRulerY = -1;
+    private static float savedRulerAngle = 0.0f;
+    private static boolean wasRulerActive = false;
+
     // --- ПЕРЕМЕННЫЕ ДЛЯ СТРАНИЦ ---
     private List<SketchData> pages = new ArrayList<>();
     private int currentPageIndex = 0;
@@ -143,6 +169,18 @@ public class SketchbookScreen extends Screen {
                 for (int i = 0; i < 16; i++) {
                     this.pages.add(emptyData);
                 }
+            }
+
+            // --- ЗАГРУЗКА ЛИНЕЙКИ ---
+            if (savedRulerX != -1) {
+                this.rulerX = savedRulerX;
+                this.rulerY = savedRulerY;
+                this.rulerAngle = savedRulerAngle;
+                this.isRulerActive = wasRulerActive;
+            } else {
+                // Если открываем впервые, спавним линейку по центру экрана
+                this.rulerX = this.width / 2.0;
+                this.rulerY = this.height / 2.0;
             }
 
             // 2. Вызываем помощник для загрузки пикселей текущей страницы на холст
@@ -303,6 +341,17 @@ public class SketchbookScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+
+        this.lastMouseX = mouseX;
+        this.lastMouseY = mouseY;
+
+        // Если активен векторный вызов (Shift+R), ставим линейку строго на вектор
+        if (this.isQuickRulerMode) {
+            this.rulerX = (this.quickRulerStartX + mouseX) / 2.0;
+            this.rulerY = (this.quickRulerStartY + mouseY) / 2.0;
+            this.rulerAngle = (float) Math.toDegrees(Math.atan2(mouseY - this.quickRulerStartY, mouseX - this.quickRulerStartX));
+        }
+
         // --- 1. БАЗОВЫЕ ПЕРЕМЕННЫЕ ---
         int renderX = (int) this.exactGuiLeft;
         int renderY = (int) this.exactGuiTop;
@@ -435,6 +484,16 @@ public class SketchbookScreen extends Screen {
             boolean canDraw = (this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors) || (this.activeTool == Tool.ERASER && hasEraser);
             if (canDraw) {
                 double physicalCellSize = (double) this.scale / this.resolutionMultiplier;
+
+                // ПРИМЕНЯЕМ МАГНИТ ДЛЯ ПРЕДПРОСМОТРА КИСТИ
+                double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
+                double magX = magnetMouse[ 0 ];
+                double magY = magnetMouse[ 1 ];
+
+                double[] lMouseMagnet = getLogicalMouse(magX, magY);
+                double logicalX = lMouseMagnet[ 0 ];
+                double logicalY = lMouseMagnet[ 1 ];
+
                 int centerX = (int) ((lMouseX - canvasScreenLeft) / physicalCellSize);
                 int centerY = (int) ((lMouseY - renderY) / physicalCellSize);
                 int offset = this.brushSize / 2;
@@ -533,6 +592,21 @@ public class SketchbookScreen extends Screen {
             int activeX = (this.activeTool == Tool.PENCIL) ? pencilX : colorPencilX;
             int hX = activeX + (scaledBtnWidth / 2) - (this.font.width(hardnessText) / 2);
             guiGraphics.drawString(this.font, hardnessText, hX, peekY - 24, hardnessColor, false);
+        }
+
+        // --- ОТРИСОВКА ЛИНЕЙКИ ---
+        if (this.isRulerActive) {
+            guiGraphics.pose().pushPose();
+            guiGraphics.pose().translate(this.rulerX, this.rulerY, 0.5f);
+            guiGraphics.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(this.rulerAngle));
+
+            com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+            // ИСПРАВЛЕНИЕ: Якорная точка (0,0) теперь находится по центру ВЕРХНЕЙ (рабочей) грани.
+            // Поэтому Y сдвиг = 0, и линейка рендерится ВНИЗ от якорной точки.
+            guiGraphics.blit(RULER_TEX, -this.rulerWidth / 2, 0, 0.0f, 0.0f, this.rulerWidth, this.rulerHeight, this.rulerWidth, this.rulerHeight);
+            com.mojang.blaze3d.systems.RenderSystem.disableBlend();
+
+            guiGraphics.pose().popPose();
         }
 
         super.render(guiGraphics, mouseX, mouseY, partialTick);
@@ -707,6 +781,30 @@ public class SketchbookScreen extends Screen {
         return false;
     }
 
+    private double[] applyRulerMagnet(double mX, double mY) {
+        if (!this.isRulerActive || this.isQuickRulerMode) return new double[]{mX, mY};
+
+        double dx = mX - this.rulerX;
+        double dy = mY - this.rulerY;
+        double rad = Math.toRadians(-this.rulerAngle);
+        // Переводим курсор в локальные координаты линейки
+        double localX = dx * Math.cos(rad) - dy * Math.sin(rad);
+        double localY = dx * Math.sin(rad) + dy * Math.cos(rad);
+
+        // Дистанция захвата - 15 пикселей от рабочей грани
+        // Проверяем, что мышь рядом с гранью (localY ~ 0) и не выходит за длину линейки
+        if (Math.abs(localY) <= 15 && Math.abs(localX) <= this.rulerWidth / 2.0) {
+            localY = 0; // Строго привязываем к верхней кромке (рабочей стороне)
+
+            // Возвращаем примагниченные координаты обратно в глобальные
+            double radBack = Math.toRadians(this.rulerAngle);
+            double snappedX = this.rulerX + (localX * Math.cos(radBack) - localY * Math.sin(radBack));
+            double snappedY = this.rulerY + (localX * Math.sin(radBack) + localY * Math.cos(radBack));
+            return new double[]{snappedX, snappedY};
+        }
+        return new double[]{mX, mY};
+    }
+
     private void drawPixel(double lMouseX, double lMouseY, boolean isEraser) {
         int canvasScreenLeft = (int) this.exactGuiLeft + ((this.frameWidth + this.deadZoneWidth) * this.scale);
         int canvasScreenTop = (int) this.exactGuiTop;
@@ -842,6 +940,45 @@ public class SketchbookScreen extends Screen {
                 }
             } else if (this.activeTool == Tool.ERASER && hasEraser) {
                 if (handleSizeIndicatorClick(mouseX, mouseY, eraserX, peekY)) return true;
+            }
+
+            // --- ЛОГИКА ЛИНЕЙКИ (Нажатие) ---
+            if (this.isRulerActive && !this.isQuickRulerMode) {
+                double dx = mouseX - this.rulerX;
+                double dy = mouseY - this.rulerY;
+                double rad = Math.toRadians(-this.rulerAngle);
+                double localX = dx * Math.cos(rad) - dy * Math.sin(rad);
+                double localY = dx * Math.sin(rad) + dy * Math.cos(rad);
+
+                // Так как якорная точка теперь на ВЕРХНЕМ крае, localY проверяется от 0 до высоты
+                if (Math.abs(localX) <= this.rulerWidth / 2.0 && localY >= 0 && localY <= this.rulerHeight) {
+                    if (button == 0) { // ЛКМ
+                        if (Screen.hasShiftDown()) {
+                            this.isRulerRotating = true;
+                            // Запоминаем изначальный сдвиг угла, чтобы линейка не дергалась!
+                            double startAngle = Math.toDegrees(Math.atan2(mouseY - this.rulerY, mouseX - this.rulerX));
+                            this.rulerAngleOffset = this.rulerAngle - startAngle;
+                        } else {
+                            this.isRulerDragging = true;
+                        }
+                        return true;
+                    } else if (button == 1) { // ПКМ по линейке для быстрого скрытия
+                        this.isRulerActive = false;
+                        return true;
+                    }
+                }
+            }
+
+            // ПКМ для быстрого скрытия линейки, если мы по ней кликнули
+            if (this.isRulerActive && button == 1) {
+                double dx = mouseX - this.rulerX;
+                double dy = mouseY - this.rulerY;
+                double rad = Math.toRadians(-this.rulerAngle);
+                if (Math.abs(dx * Math.cos(rad) - dy * Math.sin(rad)) <= this.rulerWidth / 2.0 &&
+                        Math.abs(dx * Math.sin(rad) + dy * Math.cos(rad)) <= this.rulerHeight / 2.0) {
+                    this.isRulerActive = false;
+                    return true;
+                }
             }
         }
         // 2. Получаем логические координаты для холста и кнопок на нём
@@ -1026,12 +1163,23 @@ public class SketchbookScreen extends Screen {
 
                 if (lMouseX >= canvasScreenLeft && lMouseX < (canvasScreenLeft + scaledCanvasWidth)
                         && lMouseY >= renderY && lMouseY < (renderY + scaledImageHeight)) {
+                    // ПРИМЕНЯЕМ МАГНИТ ДЛЯ РИСОВАНИЯ
+
+                    // ПРИМЕНЯЕМ МАГНИТ ДЛЯ РИСОВАНИЯ
+                    double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
+                    double magX = magnetMouse[ 0 ];
+                    double magY = magnetMouse[ 1 ];
+
+                    double[] drawLogical = getLogicalMouse(magX, magY);
+                    double drawX = drawLogical[ 0 ];
+                    double drawY = drawLogical[ 1 ];
+
                     if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors)) {
                         this.isDrawing = true;
-                        drawPixel(lMouseX, lMouseY, false);
+                        drawPixel(drawX, drawY, false);
                     } else if (this.activeTool == Tool.ERASER && hasEraser) {
                         this.isErasing = true;
-                        drawPixel(lMouseX, lMouseY, true);
+                        drawPixel(drawX, drawY, true);
                     }
                     return true;
                 }
@@ -1055,6 +1203,28 @@ public class SketchbookScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+
+        if (this.isRulerDragging) {
+            this.rulerX += dragX;
+            this.rulerY += dragY;
+            return true;
+        } else if (this.isRulerRotating) {
+            // Вращаем с учетом изначального клика (оффсета) - больше никаких дерганий на левой стороне!
+            double angleRad = Math.atan2(mouseY - this.rulerY, mouseX - this.rulerX);
+            this.rulerAngle = (float) (Math.toDegrees(angleRad) + this.rulerAngleOffset);
+            return true;
+        } else if (this.isDrawing) {
+            double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
+            double[] lMouse = getLogicalMouse(magnetMouse[ 0 ], magnetMouse[ 1 ]);
+            drawPixel(lMouse[ 0 ], lMouse[ 1 ], false);
+            return true;
+        } else if (this.isErasing) {
+            double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
+            double[] lMouse = getLogicalMouse(magnetMouse[ 0 ], magnetMouse[ 1 ]);
+            drawPixel(lMouse[ 0 ], lMouse[ 1 ], true);
+            return true;
+        }
+
         if (this.isRotating) {
             double cx = this.exactGuiLeft + (this.fileWidth * this.scale) / 2.0;
             double cy = this.exactGuiTop + (this.fileHeight * this.scale) / 2.0;
@@ -1089,6 +1259,8 @@ public class SketchbookScreen extends Screen {
                 this.strokePixels = new boolean[this.canvasWidth * this.resolutionMultiplier][this.canvasHeight * this.resolutionMultiplier];
             }
 
+            if (this.isRulerDragging) { this.isRulerDragging = false; return true; }
+            if (this.isRulerRotating) { this.isRulerRotating = false; return true; }
             if (this.isRotating) { this.isRotating = false; return true; }
             if (this.isDragging) { this.isDragging = false; return true; }
             if (this.isDrawing) { this.isDrawing = false; return true; }
@@ -1151,7 +1323,33 @@ public class SketchbookScreen extends Screen {
             return true;
         }
 
+        if (keyCode == GLFW.GLFW_KEY_R) {
+            if (net.minecraft.client.gui.screens.Screen.hasShiftDown()) {
+                // ИСПРАВЛЕНИЕ: Устанавливаем якорь только в самый первый момент зажатия!
+                if (!this.isQuickRulerMode) {
+                    this.isRulerActive = true;
+                    this.isQuickRulerMode = true;
+                    this.quickRulerStartX = this.lastMouseX;
+                    this.quickRulerStartY = this.lastMouseY;
+                }
+            } else {
+                // Обычное включение/выключение линейки
+                this.isRulerActive = !this.isRulerActive;
+            }
+            return true;
+        }
+
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+        // При отпускании клавиши R отключаем режим "быстрого позиционирования", фиксируя линейку
+        if (keyCode == GLFW.GLFW_KEY_R && this.isQuickRulerMode) {
+            this.isQuickRulerMode = false;
+            return true;
+        }
+        return super.keyReleased(keyCode, scanCode, modifiers);
     }
 
     private net.minecraft.world.item.ItemStack getColorPencilStack() {
@@ -1199,6 +1397,11 @@ public class SketchbookScreen extends Screen {
             net.minecraft.client.Minecraft.getInstance().getTextureManager().release(this.activeCanvasId);
             this.activeCanvasTexture.close();
         }
+
+        savedRulerX = this.rulerX;
+        savedRulerY = this.rulerY;
+        savedRulerAngle = this.rulerAngle;
+        wasRulerActive = this.isRulerActive;
 
         super.onClose();
     }
