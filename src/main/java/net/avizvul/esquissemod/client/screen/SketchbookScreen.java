@@ -844,7 +844,6 @@ public class SketchbookScreen extends Screen {
         }
         java.util.List<net.avizvul.esquissemod.component.SketchData> pages =
                 new java.util.ArrayList<>(stack.getOrDefault(ModDataComponents.SKETCHBOOK_PAGES.get(), new java.util.ArrayList<>()));
-        // -------------------------------------------------------------------------
 
         // Расчет координат синей зоны
         int blueZoneWidth = this.deadZoneWidth * this.scale;
@@ -1009,7 +1008,7 @@ public class SketchbookScreen extends Screen {
 
                 if (lMouseX >= canvasScreenLeft && lMouseX < (canvasScreenLeft + scaledCanvasWidth)
                         && lMouseY >= renderY && lMouseY < (renderY + scaledImageHeight)) {
-                    if ((this.activeTool == Tool.PENCIL && hasColors) || (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil)) {
+                    if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors)) {
                         this.isDrawing = true;
                         drawPixel(lMouseX, lMouseY, false);
                     } else if (this.activeTool == Tool.ERASER && hasEraser) {
@@ -1119,13 +1118,21 @@ public class SketchbookScreen extends Screen {
         boolean hasPencil = hasTool(ModItems.PENCIL.get());
         boolean hasEraser = hasTool(ModItems.ERASER.get());
 
+        // НОВОЕ: Проверяем наличие цветного карандаша (используем уже готовый метод)
+        boolean hasColorPencil = !getColorPencilStack().isEmpty();
+
         if (keyCode == GLFW.GLFW_KEY_B && hasPencil) {
             this.activeTool = Tool.PENCIL;
+            return true;
+        } else if (keyCode == GLFW.GLFW_KEY_C && hasColorPencil) {
+            // НОВОЕ: При нажатии на 'C' берем цветной карандаш
+            this.activeTool = Tool.COLOR_PENCIL;
             return true;
         } else if (keyCode == GLFW.GLFW_KEY_E && hasEraser) {
             this.activeTool = Tool.ERASER;
             return true;
         }
+
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 

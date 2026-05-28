@@ -22,7 +22,23 @@ public class ModCreativeModeTabs {
                         output.accept(ModItems.SKETCHBOOK);
                         output.accept(ModItems.PENCIL);
                         output.accept(ModItems.ERASER);
-                        output.accept(ModItems.COLOR_PENCIL);
+                        output.accept(ModItems.COLOR_PENCIL); // Это добавит обычный (пустой) карандаш
+
+                        // --- НОВОЕ: Полностью заполненный цветной карандаш ---
+                        ItemStack fullColorPencil = new ItemStack(ModItems.COLOR_PENCIL.get());
+                        java.util.List<Integer> allColors = new java.util.ArrayList<>();
+                        // Заполняем список всеми 16 ID цветов (от 0 до 15)
+                        for (int i = 0; i < 16; i++) {
+                            allColors.add(i);
+                        }
+                        // Применяем список цветов к предмету
+                        fullColorPencil.set(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), allColors);
+                        fullColorPencil.set(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
+
+                        // Добавляем готовый предмет во вкладку
+                        output.accept(fullColorPencil);
+                        // -----------------------------------------------------
+
                     }).build());
     public static void register(IEventBus eventBus) {
         CREATIVE_MODE_TAB.register(eventBus);

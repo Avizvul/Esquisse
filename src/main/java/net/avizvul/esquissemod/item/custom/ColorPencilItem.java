@@ -55,6 +55,20 @@ public class ColorPencilItem extends DrawingToolItem {
     }
 
     @Override
+    public net.minecraft.network.chat.Component getName(ItemStack stack) {
+        java.util.List<Integer> colors = stack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+
+        // Если список цветов пуст, возвращаем ключ перевода для пустого карандаша
+        if (colors.isEmpty()) {
+            return net.minecraft.network.chat.Component.translatable("item.esquissemod.empty_color_pencil");
+        }
+
+        // Иначе возвращаем стандартное имя (item.esquissemod.color_pencil)
+        return super.getName(stack);
+    }
+
+
+    @Override
     public net.minecraft.resources.ResourceLocation getGuiTexture() {
         return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_color_pencil.png");
     }

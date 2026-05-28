@@ -9,20 +9,30 @@ public class ClientRenderUtils {
      */
     public static void renderSketchPixels(net.minecraft.client.gui.GuiGraphics guiGraphics, int[][] pixels, int startX, int startY, int scale) {
         if (pixels == null || pixels.length == 0) return;
-
         int width = pixels.length;
-        // ИСПРАВЛЕНО: pixels.length вместо pixels.length
         int height = pixels[0].length;
 
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
+        // ВАЖНО: Сначала идем по Y (сверху вниз), а внутри по X (слева направо)
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
                 int pixelColor = pixels[x][y];
                 if (pixelColor != 0) {
-                    int drawX = startX + (x * scale);
+                    int startPixelX = x;
+
+                    // "Жадное" объединение: пока следующий пиксель имеет ТАКОЙ ЖЕ цвет, расширяем нашу линию
+                    while (x + 1 < width && pixels[x + 1][y] == pixelColor) {
+                        x++;
+                    }
+
+                    int drawX = startX + (startPixelX * scale);
                     int drawY = startY + (y * scale);
-                    guiGraphics.fill(drawX, drawY, drawX + scale, drawY + scale, pixelColor);
+                    // Ширина итогового отрезка (от startPixelX до сдвинутого x)
+                    int segmentWidth = (x - startPixelX + 1) * scale;
+
+                    guiGraphics.fill(drawX, drawY, drawX + segmentWidth, drawY + scale, pixelColor);
                 }
             }
         }
     }
+
 }

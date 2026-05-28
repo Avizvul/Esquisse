@@ -79,12 +79,23 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
         VertexConsumer pixelConsumer = bufferSource.getBuffer(RenderType.entityTranslucentCull(PAGE_TEX));
         int[][] pixels = data.toArray(126, 192);
 
-        for (int x = 0; x < 126; x++) {
-            for (int y = 0; y < 192; y++) {
+        // Точно так же меняем порядок: сначала Y, потом X
+        for (int y = 0; y < 192; y++) {
+            for (int x = 0; x < 126; x++) {
                 int pixelColor = pixels[x][y];
                 if (pixelColor != 0) {
-                    // Z = +0.01f. Пиксели выдвигаются БЛИЖЕ к игроку поверх бумаги!
-                    drawQuad(pose, pixelConsumer, x, y, -0.1f, 1, 1, 0.1f, 0.1f, 0.11f, 0.11f, pixelColor, packedLight);
+                    int startPixelX = x;
+
+                    // Собираем пиксели одного цвета в одну горизонтальную полоску
+                    while (x + 1 < 126 && pixels[x + 1][y] == pixelColor) {
+                        x++;
+                    }
+
+                    float segmentWidth = (x - startPixelX + 1);
+
+                    // Z = +0.01f. Пиксели выдвигаются БЛИЖЕ к игроку поверх бумаги
+                    // Передаем segmentWidth вместо 1 для ширины
+                    drawQuad(pose, pixelConsumer, startPixelX, y, 0.01f, segmentWidth, 1, 0.1f, 0.1f, 0.11f, 0.11f, pixelColor, packedLight);
                 }
             }
         }
