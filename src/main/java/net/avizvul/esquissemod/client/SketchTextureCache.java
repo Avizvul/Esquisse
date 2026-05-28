@@ -35,7 +35,9 @@ public class SketchTextureCache {
         int[][] pixels = data.getRawPixels();
         int width = pixels.length;
         if (width == 0) return null;
-        int height = pixels.length;
+
+        // ИСПРАВЛЕНИЕ: Берем pixels.length для правильной высоты (192 вместо 126)
+        int height = pixels[0].length;
 
         NativeImage image = new NativeImage(width, height, true);
         for (int x = 0; x < width; x++) {
@@ -53,8 +55,10 @@ public class SketchTextureCache {
         }
 
         DynamicTexture texture = new DynamicTexture(image);
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("esquissemod", "sketch_cache_" + Math.abs(hash));
-        Minecraft.getInstance().getTextureManager().register(id, texture);
+
+        // ИСПРАВЛЕНИЕ: Используем встроенный генератор ID Майнкрафта
+        // Он создаст безопасный путь вида minecraft:dynamic/sketch_cache_...
+        ResourceLocation id = Minecraft.getInstance().getTextureManager().register("sketch_cache", texture);
 
         CACHE.put(hash, id);
         return id;

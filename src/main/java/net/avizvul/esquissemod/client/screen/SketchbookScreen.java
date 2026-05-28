@@ -872,24 +872,23 @@ public class SketchbookScreen extends Screen {
         // --- ЛОГИКА ОТРЫВА СТРАНИЦЫ ---
         if (button == 1 && lMouseX >= blueZoneLeft && lMouseX <= blueZoneRight && lMouseY >= blueZoneTop && lMouseY <= blueZoneBottom) {
 
-            // --- ИСПРАВЛЕНИЕ 1: Оборачиваем сырой массив пикселей в объект SketchData ---
+            // 1. СНАЧАЛА отправляем серверу последние штрихи (сохраняем рисунок)
             net.neoforged.neoforge.network.PacketDistributor.sendToServer(
                     new SketchbookSavePayload(
-                            this.currentPageIndex,                                                // 1: int (индекс страницы)
-                            net.avizvul.esquissemod.component.SketchData.fromArray(this.pixels),  // 2: SketchData (сам рисунок)
-                            this.pencilPixelsUsed,                                             // 3: int (ваша переменная пикселей карандаша)
-                            this.eraserPixelsUsed                                              // 4: int (ваша переменная пикселей ластика)
+                            this.currentPageIndex,
+                            net.avizvul.esquissemod.component.SketchData.fromArray(this.pixels),
+                            this.pencilPixelsUsed,
+                            this.eraserPixelsUsed
                     )
             );
 
-            // Отправляем пакет на отрыв (сервер уже будет знать о нашем рисунке!)
-            net.neoforged.neoforge.network.PacketDistributor.sendToServer(new TearPagePayload(this.currentPageIndex));
+            // 2. ЗАТЕМ сразу отправляем команду на отрыв (теперь сервер знает о рисунке)
+            net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                    new TearPagePayload(this.currentPageIndex)
+            );
 
-            // --- ИСПРАВЛЕНИЕ 2: Оставлено строго ОДНО удаление страницы ---
-            // Локально удаляем страницу из списка на клиенте, чтобы не было рассинхрона
-            if (this.currentPageIndex >= 0 && this.currentPageIndex < pages.size()) {
-                pages.remove(this.currentPageIndex);
-            }
+            // 3. Удаляем страницу из локального списка на клиенте
+            pages.remove(this.currentPageIndex);
 
             if (pages.isEmpty()) {
                 // Если мы оторвали самую последнюю существующую страницу — закрываем скетчбук
@@ -907,6 +906,9 @@ public class SketchbookScreen extends Screen {
                 int w = this.canvasWidth * this.resolutionMultiplier;
                 int h = this.canvasHeight * this.resolutionMultiplier;
                 this.pixels = pages.get(this.currentPageIndex).toArray(w, h);
+
+                // Сигнализируем, что холст изменился и его нужно перерисовать!
+                this.isCanvasDirty = true;
             }
 
             return true;
@@ -1168,14 +1170,31 @@ public class SketchbookScreen extends Screen {
         savedGuiLeft = this.exactGuiLeft;
         savedGuiTop = this.exactGuiTop;
         savedRotationAngle = this.rotationAngle;
-
-        // ЭТУ СТРОКУ УДАЛЯЕМ: savedPageIndex = this.currentPageIndex;
-
         hasSavedState = true;
 
         SketchData data = SketchData.fromArray(this.pixels);
-        // Вы уже правильно передаете this.currentPageIndex в пакет!
-        PacketDistributor.sendToServer(new SketchbookSavePayload(this.currentPageIndex, data, this.pencilPixelsUsed, this.eraserPixelsUsed));
+
+        // --- ИСПРАВЛЕНИЕ: Локально сохраняем рисунок в предмет перед закрытием ---
+        if (this.minecraft != null && this.minecraft.player != null) {
+            net.minecraft.world.item.ItemStack stack = this.minecraft.player.getMainHandItem();
+            if (!stack.is(net.avizvul.esquissemod.item.ModItems.SKETCHBOOK.get())) {
+                stack = this.minecraft.player.getOffhandItem();
+            }
+            if (stack.is(net.avizvul.esquissemod.item.ModItems.SKETCHBOOK.get())) {
+                java.util.List<net.avizvul.esquissemod.component.SketchData> pages =
+                        new java.util.ArrayList<>(stack.getOrDefault(ModDataComponents.SKETCHBOOK_PAGES.get(), new java.util.ArrayList<>()));
+
+                if (this.currentPageIndex >= 0 && this.currentPageIndex < pages.size()) {
+                    pages.set(this.currentPageIndex, data);
+                    stack.set(ModDataComponents.SKETCHBOOK_PAGES.get(), pages);
+                    stack.set(ModDataComponents.LAST_PAGE.get(), this.currentPageIndex);
+                }
+            }
+        }
+
+        // Теперь пакет весит считанные байты и отправится без крашей
+        net.neoforged.neoforge.network.PacketDistributor.sendToServer(new SketchbookSavePayload(this.currentPageIndex, data, this.pencilPixelsUsed, this.eraserPixelsUsed));
+
         if (this.activeCanvasId != null) {
             net.minecraft.client.Minecraft.getInstance().getTextureManager().release(this.activeCanvasId);
             this.activeCanvasTexture.close();
@@ -1188,8 +1207,9 @@ public class SketchbookScreen extends Screen {
         if (this.activeCanvasTexture == null) {
             com.mojang.blaze3d.platform.NativeImage image = new com.mojang.blaze3d.platform.NativeImage(126, 192, true);
             this.activeCanvasTexture = new net.minecraft.client.renderer.texture.DynamicTexture(image);
-            this.activeCanvasId = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("esquissemod", "active_canvas_" + java.util.UUID.randomUUID().toString().substring(0, 8));
-            net.minecraft.client.Minecraft.getInstance().getTextureManager().register(this.activeCanvasId, this.activeCanvasTexture);
+
+            // ИСПРАВЛЕНИЕ: Точно так же отдаем регистрацию на откуп самой игре
+            this.activeCanvasId = net.minecraft.client.Minecraft.getInstance().getTextureManager().register("active_canvas", this.activeCanvasTexture);
         }
         com.mojang.blaze3d.platform.NativeImage image = this.activeCanvasTexture.getPixels();
         if (image != null) {
