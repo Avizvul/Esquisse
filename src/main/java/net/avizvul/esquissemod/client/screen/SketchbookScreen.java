@@ -31,6 +31,7 @@ public class SketchbookScreen extends Screen {
     private static final ResourceLocation PAGE_F_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_page_f.png");
     private static final ResourceLocation COLOR_PENCIL_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_color_pencil_base.png");
     private static final ResourceLocation COLOR_PENCIL_TINT_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_color_pencil_tint.png");
+    private static final ResourceLocation RULER_BTN_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_ruler.png");
 
     private enum Tool { PENCIL, COLOR_PENCIL, ERASER }
     private Tool activeTool = Tool.PENCIL;
@@ -209,7 +210,7 @@ public class SketchbookScreen extends Screen {
     }
 
     // Компактная структура для хранения координат кнопок инструментов
-    private record ToolButtonCoords(int scaledBtnWidth, int scaledBtnHeight, int pencilX, int colorPencilX, int eraserX, int peekY) {}
+    private record ToolButtonCoords(int scaledBtnWidth, int scaledBtnHeight, int pencilX, int colorPencilX, int eraserX, int rulerX, int peekY) {}
 
     // Вспомогательный метод для расчета
     private ToolButtonCoords getToolButtonCoords() {
@@ -224,16 +225,23 @@ public class SketchbookScreen extends Screen {
         boolean hasPencil = hasTool(ModItems.PENCIL.get());
         boolean hasColorPencil = !getColorPencilStack().isEmpty();
         boolean hasEraser = hasTool(ModItems.ERASER.get());
+        boolean hasRuler = hasTool(ModItems.RULER.get());
 
-        // Если инструмента нет, уводим его за экран (-1000)
-        int pencilX = -1000, colorPencilX = -1000, eraserX = -1000;
+        // Если инструмента нет, уводим его за экран
+        int pencilX = -1000, colorPencilX = -1000, eraserX = -1000, rulerX = -1000;
 
-        // Поочередно назначаем координаты. Если инструмент есть, он занимает currentX, а следующий сдвигается правее.
+        // Поочередно назначаем координаты. Линейка будет стоять самой последней справа
+        if (hasRuler) {
+            // Берем центр экрана, отступаем влево на 100 пикселей (симметрично инструментам справа)
+            // и вычитаем ширину самой кнопки, чтобы она строилась справа налево.
+            rulerX = (this.width / 2) - 100 - scaledBtnWidth;
+        }
+
         if (hasPencil) { pencilX = currentX; currentX += scaledBtnWidth + 5; }
         if (hasColorPencil) { colorPencilX = currentX; currentX += scaledBtnWidth + 5; }
         if (hasEraser) { eraserX = currentX; currentX += scaledBtnWidth + 5; }
 
-        return new ToolButtonCoords(scaledBtnWidth, scaledBtnHeight, pencilX, colorPencilX, eraserX, peekY);
+        return new ToolButtonCoords(scaledBtnWidth, scaledBtnHeight, pencilX, colorPencilX, eraserX, rulerX, peekY);
     }
 
     private void loadPagePixels() {
@@ -320,15 +328,48 @@ public class SketchbookScreen extends Screen {
         return new double[]{logicalX, logicalY};
     }
 
-    private boolean hasTool(Item toolItem) {
-        if (this.minecraft == null || this.minecraft.player == null) return false;
-        for (ItemStack stack : this.minecraft.player.getInventory().items) {
-            if (stack.is(toolItem)) return true;
+    // Единый метод для поиска инструмента в инвентаре игрока ИЛИ внутри пенала
+    private net.minecraft.world.item.ItemStack findItemStack(net.minecraft.world.item.Item targetItem) {
+        if (this.minecraft == null || this.minecraft.player == null) return net.minecraft.world.item.ItemStack.EMPTY;
+
+        // Ищем в основной руке и слотах инвентаря
+        for (net.minecraft.world.item.ItemStack stack : this.minecraft.player.getInventory().items) {
+            if (stack.is(targetItem)) return stack;
+            net.minecraft.world.item.ItemStack fromCase = checkPencilCase(stack, targetItem);
+            if (!fromCase.isEmpty()) return fromCase;
         }
-        for (ItemStack stack : this.minecraft.player.getInventory().offhand) {
-            if (stack.is(toolItem)) return true;
+        // Ищем во второй руке
+        for (net.minecraft.world.item.ItemStack stack : this.minecraft.player.getInventory().offhand) {
+            if (stack.is(targetItem)) return stack;
+            net.minecraft.world.item.ItemStack fromCase = checkPencilCase(stack, targetItem);
+            if (!fromCase.isEmpty()) return fromCase;
         }
-        return false;
+        return net.minecraft.world.item.ItemStack.EMPTY;
+    }
+
+    // Проверяем, является ли предмет пеналом, и заглядываем внутрь него
+    private net.minecraft.world.item.ItemStack checkPencilCase(net.minecraft.world.item.ItemStack containerStack, net.minecraft.world.item.Item targetItem) {
+        if (containerStack.is(net.avizvul.esquissemod.item.ModItems.PENCIL_CASE.get()) && containerStack.has(net.minecraft.core.component.DataComponents.CONTAINER)) {
+            net.minecraft.world.item.component.ItemContainerContents contents = containerStack.get(net.minecraft.core.component.DataComponents.CONTAINER);
+            if (contents != null) {
+                // Копируем содержимое пенала в список для перебора
+                net.minecraft.core.NonNullList<net.minecraft.world.item.ItemStack> items = net.minecraft.core.NonNullList.withSize(9, net.minecraft.world.item.ItemStack.EMPTY);
+                contents.copyInto(items);
+                for (net.minecraft.world.item.ItemStack innerStack : items) {
+                    if (innerStack.is(targetItem)) return innerStack;
+                }
+            }
+        }
+        return net.minecraft.world.item.ItemStack.EMPTY;
+    }
+
+    // Обновленные старые методы теперь просто используют универсальный поисковик
+    private boolean hasTool(net.minecraft.world.item.Item toolItem) {
+        return !findItemStack(toolItem).isEmpty();
+    }
+
+    private net.minecraft.world.item.ItemStack getColorPencilStack() {
+        return findItemStack(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get());
     }
 
     @Override
@@ -501,18 +542,7 @@ public class SketchbookScreen extends Screen {
                 // Умный предпросмотр
                 int previewColor = (this.activeTool == Tool.ERASER) ? 0x60FF0000 : 0x60000000;
 
-                // Ищем цветной карандаш напрямую в инвентаре, чтобы избежать ошибки с необъявленной переменной
-                net.minecraft.world.item.ItemStack colorPencil = net.minecraft.world.item.ItemStack.EMPTY;
-                if (this.minecraft != null && this.minecraft.player != null) {
-                    for (net.minecraft.world.item.ItemStack st : this.minecraft.player.getInventory().items) {
-                        if (st.is(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get())) { colorPencil = st; break; }
-                    }
-                    if (colorPencil.isEmpty()) {
-                        for (net.minecraft.world.item.ItemStack st : this.minecraft.player.getInventory().offhand) {
-                            if (st.is(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get())) { colorPencil = st; break; }
-                        }
-                    }
-                }
+                net.minecraft.world.item.ItemStack colorPencil = getColorPencilStack();
 
                 if (this.activeTool == Tool.COLOR_PENCIL && !colorPencil.isEmpty()) {
                     java.util.List<Integer> colors = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
@@ -559,13 +589,20 @@ public class SketchbookScreen extends Screen {
         int pencilX = toolCoords.pencilX();
         int colorPencilX = toolCoords.colorPencilX();
         int eraserX = toolCoords.eraserX();
+        int rulerX = toolCoords.rulerX();
         int peekY = toolCoords.peekY();
 
-
         // Рендер кнопок
-        if (hasPencil) renderToolButton(guiGraphics, mouseX, mouseY, Tool.PENCIL, PENCIL_TEX, pencilX);
+        if (hasPencil) renderToolButton(guiGraphics, mouseX, mouseY, this.activeTool == Tool.PENCIL, PENCIL_TEX, pencilX);
         if (hasColorPencil) renderColorToolButton(guiGraphics, mouseX, mouseY, colorPencilX, colorPencilStack);
-        if (hasEraser) renderToolButton(guiGraphics, mouseX, mouseY, Tool.ERASER, ERASER_TEX, eraserX);
+        if (hasEraser) renderToolButton(guiGraphics, mouseX, mouseY, this.activeTool == Tool.ERASER, ERASER_TEX, eraserX);
+
+        // Рендер кнопки линейки (Отрисовываем ТОЛЬКО если линейка спрятана)
+        boolean hasRuler = hasTool(net.avizvul.esquissemod.item.ModItems.RULER.get());
+        if (hasRuler && !this.isRulerActive) {
+            // Передаем false в isSelected, так как активной кнопки больше не существует
+            renderToolButton(guiGraphics, mouseX, mouseY, false, RULER_BTN_TEX, rulerX);
+        }
 
         // Индикаторы размера кисти, палитра и текст "Empty"
         if (this.activeTool == Tool.PENCIL && hasPencil) {
@@ -612,13 +649,13 @@ public class SketchbookScreen extends Screen {
         super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
-    private void renderToolButton(GuiGraphics guiGraphics, int mouseX, int mouseY, Tool tool, ResourceLocation texture, int x) {
-        boolean isSelected = (this.activeTool == tool);
+    private void renderToolButton(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isSelected, ResourceLocation texture, int x) {
         int scaledWidth = this.buttonWidth * this.buttonScale;
         int scaledHeight = this.buttonHeight * this.buttonScale;
 
         int peekY = this.height - scaledHeight;
         int baseY = this.height - (scaledHeight / 2);
+
         int renderY = isSelected ? peekY : baseY;
 
         boolean isHovered = mouseX >= x && mouseX < x + scaledWidth && mouseY >= renderY && mouseY < renderY + scaledHeight;
@@ -836,17 +873,7 @@ public class SketchbookScreen extends Screen {
                             int brushRgb = 0x111111;
 
                             // Ищем цветной карандаш напрямую в инвентаре игрока
-                            net.minecraft.world.item.ItemStack colorPencil = net.minecraft.world.item.ItemStack.EMPTY;
-                            if (this.minecraft != null && this.minecraft.player != null) {
-                                for (net.minecraft.world.item.ItemStack st : this.minecraft.player.getInventory().items) {
-                                    if (st.is(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get())) { colorPencil = st; break; }
-                                }
-                                if (colorPencil.isEmpty()) {
-                                    for (net.minecraft.world.item.ItemStack st : this.minecraft.player.getInventory().offhand) {
-                                        if (st.is(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get())) { colorPencil = st; break; }
-                                    }
-                                }
-                            }
+                            net.minecraft.world.item.ItemStack colorPencil = getColorPencilStack();
 
                             if (this.activeTool == Tool.COLOR_PENCIL && !colorPencil.isEmpty()) {
                                 java.util.List<Integer> colors = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
@@ -885,7 +912,7 @@ public class SketchbookScreen extends Screen {
         boolean hasEraser = hasTool(ModItems.ERASER.get());
         ItemStack colorPencilStack = getColorPencilStack();
         boolean hasColorPencil = !colorPencilStack.isEmpty();
-        // Определяем, есть ли цвета
+        boolean hasRuler = hasTool(net.avizvul.esquissemod.item.ModItems.RULER.get());
         boolean hasColors = hasColorPencil && !colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>()).isEmpty();
 
         ToolButtonCoords toolCoords = getToolButtonCoords();
@@ -896,10 +923,35 @@ public class SketchbookScreen extends Screen {
         int eraserX = toolCoords.eraserX();
         int peekY = toolCoords.peekY();
 
+        if (this.isRulerActive && !this.isQuickRulerMode) {
+            double dx = mouseX - this.rulerX;
+            double dy = mouseY - this.rulerY;
+            double rad = Math.toRadians(-this.rulerAngle);
+            double localX = dx * Math.cos(rad) - dy * Math.sin(rad);
+            double localY = dx * Math.sin(rad) + dy * Math.cos(rad);
+
+            if (Math.abs(localX) <= this.rulerWidth / 2.0 && localY >= 0 && localY <= this.rulerHeight) {
+                if (button == 0) { // ЛКМ - перемещение или вращение
+                    if (net.minecraft.client.gui.screens.Screen.hasShiftDown()) {
+                        this.isRulerRotating = true;
+                        double startAngle = Math.toDegrees(Math.atan2(mouseY - this.rulerY, mouseX - this.rulerX));
+                        this.rulerAngleOffset = this.rulerAngle - startAngle;
+                    } else {
+                        this.isRulerDragging = true;
+                    }
+                    return true;
+                } else if (button == 1) { // ПКМ - быстрое скрытие линейки
+                    this.isRulerActive = false;
+                    return true;
+                }
+            }
+        }
+
         // 1. Проверяем клики по инструментам интерфейса (только ЛКМ)
         if (button == 0) {
             int baseY = this.height - (scaledBtnHeight / 2);
             int pencilY = (this.activeTool == Tool.PENCIL) ? peekY : baseY;
+            int rulerX = toolCoords.rulerX();
             int colorPencilY = (this.activeTool == Tool.COLOR_PENCIL) ? peekY : baseY;
             int eraserY = (this.activeTool == Tool.ERASER) ? peekY : baseY;
 
@@ -913,6 +965,13 @@ public class SketchbookScreen extends Screen {
             }
             if (hasEraser && mouseX >= eraserX && mouseX < eraserX + scaledBtnWidth && mouseY >= eraserY && mouseY < eraserY + scaledBtnHeight) {
                 this.activeTool = Tool.ERASER;
+                return true;
+            }
+            int rulerY = this.isRulerActive ? peekY : baseY;
+            // --- Клик ЛКМ по кнопке линейки (Вытаскиваем её) ---
+            // Теперь кнопка есть только в позиции baseY
+            if (hasRuler && !this.isRulerActive && mouseX >= rulerX && mouseX < rulerX + scaledBtnWidth && mouseY >= baseY && mouseY < baseY + scaledBtnHeight) {
+                this.isRulerActive = true;
                 return true;
             }
 
@@ -981,6 +1040,7 @@ public class SketchbookScreen extends Screen {
                 }
             }
         }
+
         // 2. Получаем логические координаты для холста и кнопок на нём
         double[] logicalMouse = getLogicalMouse(mouseX, mouseY);
         double lMouseX = logicalMouse[0];
@@ -1118,6 +1178,7 @@ public class SketchbookScreen extends Screen {
 
         // 4. Логика, работающая только на ЛКМ (перетаскивание и рисование)
         if (button == 0) {
+
             int scaledFrameWidth = this.frameWidth * this.scale;
             int scaledImageHeight = this.fileHeight * this.scale;
 
@@ -1194,6 +1255,13 @@ public class SketchbookScreen extends Screen {
             if (clickedPencil || clickedColorPencil) {
                 this.currentHardness++;
                 if (this.currentHardness > 3) this.currentHardness = 1;
+                return true;
+            }
+
+            // --- ДОБАВЛЕНО: Прячем линейку при ПКМ по её высунутой кнопке ---
+            boolean clickedRuler = hasRuler && mouseX >= rulerX && mouseX < rulerX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
+            if (clickedRuler && this.isRulerActive) {
+                this.isRulerActive = false;
                 return true;
             }
         }
@@ -1324,21 +1392,21 @@ public class SketchbookScreen extends Screen {
         }
 
         if (keyCode == GLFW.GLFW_KEY_R) {
-            if (net.minecraft.client.gui.screens.Screen.hasShiftDown()) {
-                // ИСПРАВЛЕНИЕ: Устанавливаем якорь только в самый первый момент зажатия!
-                if (!this.isQuickRulerMode) {
-                    this.isRulerActive = true;
-                    this.isQuickRulerMode = true;
-                    this.quickRulerStartX = this.lastMouseX;
-                    this.quickRulerStartY = this.lastMouseY;
+            // Проверяем наличие линейки в инвентаре!
+            if (hasTool(net.avizvul.esquissemod.item.ModItems.RULER.get())) {
+                if (net.minecraft.client.gui.screens.Screen.hasShiftDown()) {
+                    if (!this.isQuickRulerMode) {
+                        this.isRulerActive = true;
+                        this.isQuickRulerMode = true;
+                        this.quickRulerStartX = this.lastMouseX;
+                        this.quickRulerStartY = this.lastMouseY;
+                    }
+                } else {
+                    this.isRulerActive = !this.isRulerActive;
                 }
-            } else {
-                // Обычное включение/выключение линейки
-                this.isRulerActive = !this.isRulerActive;
             }
             return true;
         }
-
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -1350,17 +1418,6 @@ public class SketchbookScreen extends Screen {
             return true;
         }
         return super.keyReleased(keyCode, scanCode, modifiers);
-    }
-
-    private net.minecraft.world.item.ItemStack getColorPencilStack() {
-        if (this.minecraft == null || this.minecraft.player == null) return net.minecraft.world.item.ItemStack.EMPTY;
-        for (net.minecraft.world.item.ItemStack st : this.minecraft.player.getInventory().items) {
-            if (st.is(ModItems.COLOR_PENCIL.get())) return st;
-        }
-        for (net.minecraft.world.item.ItemStack st : this.minecraft.player.getInventory().offhand) {
-            if (st.is(ModItems.COLOR_PENCIL.get())) return st;
-        }
-        return net.minecraft.world.item.ItemStack.EMPTY;
     }
 
     @Override

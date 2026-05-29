@@ -5,6 +5,7 @@ import net.avizvul.esquissemod.block.entity.ModBlockEntities;
 import net.avizvul.esquissemod.component.ModDataComponents;
 import net.avizvul.esquissemod.item.ModCreativeModeTabs;
 import net.avizvul.esquissemod.item.ModItems;
+import net.avizvul.esquissemod.menu.ModMenuTypes;
 import net.avizvul.esquissemod.network.TearPagePayload;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.neoforged.fml.event.lifecycle.ModLifecycleEvent;
@@ -53,6 +54,7 @@ public class EsquisseMod {
         ModBlockEntities.register(modEventBus);
         ModCreativeModeTabs.register(modEventBus);
         ModItems.register(modEventBus);
+        ModMenuTypes.register(modEventBus);
 
 
         // ---> ВЫЗОВ НАШЕГО РЕЕСТРА КОМПОНЕНТОВ ДАННЫХ <---

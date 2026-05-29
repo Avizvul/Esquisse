@@ -126,13 +126,47 @@ public class SketchbookPayloadHandler {
                 stack.hurtAndBreak(damageAmount, level, (ServerPlayer) player, p -> {});
                 return;
             }
+            if (damageInPencilCase(stack, toolItem, damageAmount, level, player)) return;
         }
+
         // Ищем во второй руке
         for (ItemStack stack : player.getInventory().offhand) {
             if (stack.is(toolItem)) {
                 stack.hurtAndBreak(damageAmount, level, (ServerPlayer) player, p -> {});
                 return;
             }
+            if (damageInPencilCase(stack, toolItem, damageAmount, level, player)) return;
         }
+    }
+
+    // НОВОЕ: Нанесение урона инструменту внутри компонента пенала
+    private static boolean damageInPencilCase(ItemStack containerStack, Item toolItem, int damageAmount, ServerLevel level, Player player) {
+        if (containerStack.is(ModItems.PENCIL_CASE.get()) && containerStack.has(net.minecraft.core.component.DataComponents.CONTAINER)) {
+            net.minecraft.world.item.component.ItemContainerContents contents = containerStack.get(net.minecraft.core.component.DataComponents.CONTAINER);
+            if (contents != null) {
+                net.minecraft.core.NonNullList<ItemStack> items = net.minecraft.core.NonNullList.withSize(9, ItemStack.EMPTY);
+                contents.copyInto(items);
+
+                boolean foundAndDamaged = false;
+
+                for (int i = 0; i < items.size(); i++) {
+                    ItemStack innerStack = items.get(i);
+                    if (innerStack.is(toolItem)) {
+                        // Наносим урон предмету (игра сама удалит предмет, если он сломался окончательно)
+                        innerStack.hurtAndBreak(damageAmount, level, (ServerPlayer) player, p -> {});
+                        items.set(i, innerStack);
+                        foundAndDamaged = true;
+                        break;
+                    }
+                }
+
+                if (foundAndDamaged) {
+                    // Важно: упаковываем измененный массив предметов обратно в компонент пенала!
+                    containerStack.set(net.minecraft.core.component.DataComponents.CONTAINER, net.minecraft.world.item.component.ItemContainerContents.fromItems(items));
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

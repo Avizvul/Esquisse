@@ -3,6 +3,7 @@ package net.avizvul.esquissemod.item;
 import net.avizvul.esquissemod.EsquisseMod;
 import net.avizvul.esquissemod.component.ModDataComponents; // Убедитесь, что импорт правильный для вашего компонента
 import net.avizvul.esquissemod.item.custom.ColorPencilItem;
+import net.avizvul.esquissemod.item.custom.PencilCaseItem;
 import net.avizvul.esquissemod.item.custom.SketchbookItem;
 import net.avizvul.esquissemod.item.custom.SketchedPageItem;
 import net.avizvul.esquissemod.item.custom.base.DrawingToolItem;
@@ -63,6 +64,12 @@ public class ModItems {
 
     public static final DeferredItem<Item> EMPTY_PAGE = ITEMS.register("empty_page",
             () -> new Item(new Item.Properties().stacksTo(16)));
+
+    public static final DeferredItem<Item> RULER = ITEMS.register("ruler",
+            () -> new Item(new Item.Properties().stacksTo(1)));
+
+    public static final DeferredItem<Item> PENCIL_CASE = ITEMS.register("pencil_case",
+            () -> new PencilCaseItem(new Item.Properties().stacksTo(1)));
 
     public net.minecraft.resources.ResourceLocation getGuiTexture() {
         // Базовая текстура без цвета (цвет мы всё так же будем накладывать поверх неё в GUI)
