@@ -32,8 +32,8 @@ public class SketchbookScreen extends Screen {
     private static final ResourceLocation COLOR_PENCIL_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_color_pencil_base.png");
     private static final ResourceLocation COLOR_PENCIL_TINT_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_color_pencil_tint.png");
     private static final ResourceLocation RULER_BTN_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_ruler.png");
-    private static final ResourceLocation MAGGLASS_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/magglass_gui.png");
-    private static final ResourceLocation MAGGLASS_BTN_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_magglass.png");
+    private static final ResourceLocation MAGGLASS_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/magnifying_glass_gui.png");
+    private static final ResourceLocation MAGGLASS_BTN_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_magnifying_glass.png");
 
     private enum Tool { PENCIL, COLOR_PENCIL, ERASER }
     private Tool activeTool = Tool.PENCIL;
@@ -685,28 +685,44 @@ public class SketchbookScreen extends Screen {
 
         // 2. Если лупа активна - отрисовываем интерфейс ПОВТОРНО в увеличенном масштабе внутри маски!
         if (isMagActive) {
-            int radius = 14;
+            float glassScale = 2.5f; // Масштаб лупы и самого увеличения (х2.5)
 
-            // Обрезаем область отрисовки до квадрата лупы 28х28 вокруг мыши
-            guiGraphics.enableScissor(mouseX - radius, mouseY - radius, mouseX + radius, mouseY + radius);
+            // Если ваше стекло всё так же от 2 до 26 пикселей, то радиус остается 12
+            int baseRadius = 13;
+            int scaledRadius = (int) (baseRadius * glassScale); // Радиус обрезки = 30 пикселей
+
+            // Обрезаем область отрисовки до квадрата 60х60 вокруг мыши
+            guiGraphics.enableScissor(mouseX - scaledRadius, mouseY - scaledRadius, mouseX + scaledRadius, mouseY + scaledRadius);
 
             guiGraphics.pose().pushPose();
-            // Сдвигаемся к курсору, увеличиваем масштаб интерфейса в 2 раза и возвращаемся
+            // Сдвигаемся к курсору, увеличиваем масштаб интерфейса в 2.5 раза и возвращаемся
             guiGraphics.pose().translate(mouseX, mouseY, 0);
-            guiGraphics.pose().scale(2.0f, 2.0f, 1.0f);
+            guiGraphics.pose().scale(glassScale, glassScale, 1.0f);
             guiGraphics.pose().translate(-mouseX, -mouseY, 0);
 
             // Заново вызываем наш рендер контента.
-            // Благодаря матрице выше, он нарисуется ровно под мышью, но в 2 раза крупнее!
             renderContent(guiGraphics, mouseX, mouseY, partialTick);
 
             guiGraphics.pose().popPose();
             guiGraphics.disableScissor(); // Выключаем обрезку
 
-            // 3. Рисуем саму графику стекла лупы поверх всего этого
+            // 3. Рисуем саму графику лупы поверх всего этого
             com.mojang.blaze3d.systems.RenderSystem.enableBlend();
-            // Поскольку центр увеличения по вашим координатам на [1], а размер 42х42:
-            guiGraphics.blit(MAGGLASS_TEX, mouseX - 14, mouseY - 14, 0.0f, 0.0f, 42, 42, 42, 42);
+
+            // ИСПРАВЛЕНИЕ: Новые размеры текстуры лупы
+            int texWidth = 29;
+            int texHeight = 58;
+
+            // Пересчет размеров с учетом масштаба 2.5x (будет 72x145 пикселей на экране)
+            int destWidth = (int) (texWidth * glassScale);
+            int destHeight = (int) (texHeight * glassScale);
+
+            // Так как стекло находится в верхней части текстуры, его центр по-прежнему 14х14
+            int offsetX = (int) (14 * glassScale); // Будет 35
+            int offsetY = (int) (14 * glassScale); // Будет 35
+
+            guiGraphics.blit(MAGGLASS_TEX, mouseX - offsetX, mouseY - offsetY, destWidth, destHeight, 0.0f, 0.0f, texWidth, texHeight, texWidth, texHeight);
+
             com.mojang.blaze3d.systems.RenderSystem.disableBlend();
         }
     }
@@ -1484,7 +1500,16 @@ public class SketchbookScreen extends Screen {
             }
             return true;
         }
+
+        if (keyCode == GLFW.GLFW_KEY_Z) {
+            if (hasTool(ModItems.MAGNIFYING_GLASS.get())) {
+                this.isMagnifyingMode = true;
+                return true;
+            }
+        }
+
         return super.keyPressed(keyCode, scanCode, modifiers);
+
     }
 
     @Override
@@ -1494,6 +1519,12 @@ public class SketchbookScreen extends Screen {
             this.isQuickRulerMode = false;
             return true;
         }
+
+        if (keyCode == GLFW.GLFW_KEY_Z) {
+            this.isMagnifyingMode = false;
+            return true;
+        }
+
         return super.keyReleased(keyCode, scanCode, modifiers);
     }
 

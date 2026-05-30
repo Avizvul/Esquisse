@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "tool",
+  "key": {
+    "L": {
+      "item": "minecraft:leather"
+    },
+    "S": {
+      "item": "minecraft:string"
+    }
+  },
+  "pattern": [
+    "SLL",
+    "SLL",
+    "  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "esquissemod:pencil_case"
+  }
+}
