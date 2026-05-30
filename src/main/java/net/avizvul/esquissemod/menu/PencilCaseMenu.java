@@ -39,30 +39,35 @@ public class PencilCaseMenu extends AbstractContainerMenu {
             contents.copyInto(this.container.getItems());
         }
 
-        // 1. Добавляем 9 слотов самого пенала
-        for (int i = 0; i < 9; i++) {
-            this.addSlot(new Slot(this.container, i, 8 + i * 18, 20) {
-                @Override
-                public boolean mayPlace(ItemStack stack) {
-                    // РАЗРЕШАЕМ КЛАСТЬ ТОЛЬКО ИНСТРУМЕНТЫ (защищает от рекурсии пенала в пенале)
-                    return stack.is(ModItems.PENCIL.get()) ||
-                            stack.is(ModItems.COLOR_PENCIL.get()) ||
-                            stack.is(ModItems.ERASER.get()) ||
-                            stack.is(ModItems.RULER.get());
-                }
-            });
+        // 1. Добавляем 9 слотов самого пенала (Сетка 3x3)
+        // Предметы рисуются с отступом +1 от рамки, поэтому X=62, Y=21
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                this.addSlot(new Slot(this.container, col + row * 3, 62 + col * 18, 22 + row * 18) {
+                    @Override
+                    public boolean mayPlace(ItemStack stack) {
+                        return stack.is(ModItems.PENCIL.get()) ||
+                                stack.is(ModItems.COLOR_PENCIL.get()) ||
+                                stack.is(ModItems.ERASER.get()) ||
+                                stack.is(ModItems.MAGNIFYING_GLASS.get()) ||
+                                stack.is(ModItems.RULER.get());
+                    }
+                });
+            }
         }
 
         // 2. Добавляем 27 слотов инвентаря игрока
+        // Сдвинуты еще на +8 пикселей вниз (теперь Y = 98)
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, row * 18 + 51));
+                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, row * 18 + 99));
             }
         }
 
         // 3. Добавляем 9 слотов хотбара игрока
+        // Сдвинуты еще на +8 пикселей вниз (теперь Y = 156)
         for (int col = 0; col < 9; col++) {
-            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 109));
+            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 157));
         }
     }
 

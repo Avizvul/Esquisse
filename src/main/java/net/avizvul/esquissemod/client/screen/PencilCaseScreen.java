@@ -15,8 +15,13 @@ public class PencilCaseScreen extends AbstractContainerScreen<PencilCaseMenu> {
     public PencilCaseScreen(PencilCaseMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
         this.imageWidth = 176;
-        this.imageHeight = 133;
-        this.inventoryLabelY = this.imageHeight - 94; // Смещение слова "Инвентарь"
+        this.imageHeight = 181;
+        this.inventoryLabelY = this.imageHeight - 94; // Оставляем дефолтное смещение для слова "Инвентарь"
+
+        // Настраиваем позицию названия пенала
+        this.titleLabelX = 61;
+        // Так как шрифт рисуется от верхнего левого угла, а его высота 9 пикселей: 16 - 9 = 7
+        this.titleLabelY = 9;
     }
 
     @Override

@@ -32,6 +32,8 @@ public class SketchbookScreen extends Screen {
     private static final ResourceLocation COLOR_PENCIL_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_color_pencil_base.png");
     private static final ResourceLocation COLOR_PENCIL_TINT_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_color_pencil_tint.png");
     private static final ResourceLocation RULER_BTN_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_ruler.png");
+    private static final ResourceLocation MAGGLASS_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/magglass_gui.png");
+    private static final ResourceLocation MAGGLASS_BTN_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_magglass.png");
 
     private enum Tool { PENCIL, COLOR_PENCIL, ERASER }
     private Tool activeTool = Tool.PENCIL;
@@ -106,6 +108,9 @@ public class SketchbookScreen extends Screen {
     private static double savedRulerY = -1;
     private static float savedRulerAngle = 0.0f;
     private static boolean wasRulerActive = false;
+
+    private boolean isMagnifyingMode = false; // Для зажатия Z
+    private boolean isMagnifierLocked = false; // Для клика по кнопке
 
     // --- ПЕРЕМЕННЫЕ ДЛЯ СТРАНИЦ ---
     private List<SketchData> pages = new ArrayList<>();
@@ -189,6 +194,14 @@ public class SketchbookScreen extends Screen {
         }
     }
 
+    private void loadPagePixels() {
+        if (this.pages != null && this.currentPageIndex >= 0 && this.currentPageIndex < this.pages.size()) {
+            SketchData data = this.pages.get(this.currentPageIndex);
+            this.pixels = data.toArray(this.canvasWidth * this.resolutionMultiplier, this.canvasHeight * this.resolutionMultiplier);
+        }
+        this.isCanvasDirty = true;
+    }
+
     // Компактная структура для хранения вычисленных координат
     private record TabCoords(int tabX, int backTabY, int forwardTabY) {}
     // Метод, который мы будем вызывать для расчетов
@@ -210,7 +223,7 @@ public class SketchbookScreen extends Screen {
     }
 
     // Компактная структура для хранения координат кнопок инструментов
-    private record ToolButtonCoords(int scaledBtnWidth, int scaledBtnHeight, int pencilX, int colorPencilX, int eraserX, int rulerX, int peekY) {}
+    private record ToolButtonCoords(int scaledBtnWidth, int scaledBtnHeight, int pencilX, int colorPencilX, int eraserX, int rulerX, int magGlassX, int peekY) {}
 
     // Вспомогательный метод для расчета
     private ToolButtonCoords getToolButtonCoords() {
@@ -218,39 +231,35 @@ public class SketchbookScreen extends Screen {
         int scaledBtnHeight = this.buttonHeight * this.buttonScale;
         int peekY = this.height - scaledBtnHeight;
 
-        // Стартовая позиция (там, где раньше всегда был простой карандаш)
         int startX = (this.width / 2) + 100;
         int currentX = startX;
 
         boolean hasPencil = hasTool(ModItems.PENCIL.get());
-        boolean hasColorPencil = !getColorPencilStack().isEmpty();
         boolean hasEraser = hasTool(ModItems.ERASER.get());
         boolean hasRuler = hasTool(ModItems.RULER.get());
+        boolean hasMagGlass = hasTool(ModItems.MAGNIFYING_GLASS.get());
 
-        // Если инструмента нет, уводим его за экран
-        int pencilX = -1000, colorPencilX = -1000, eraserX = -1000, rulerX = -1000;
+        net.minecraft.world.item.ItemStack colorPencilStack = getColorPencilStack();
+        boolean hasColorPencil = !colorPencilStack.isEmpty();
 
-        // Поочередно назначаем координаты. Линейка будет стоять самой последней справа
+        int pencilX = -1000, colorPencilX = -1000, eraserX = -1000, rulerX = -1000, magGlassX = -1000;
+
+        // Размещаем линейку и лупу слева от хотбара
+        int leftX = (this.width / 2) - 100 - scaledBtnWidth;
+
         if (hasRuler) {
-            // Берем центр экрана, отступаем влево на 100 пикселей (симметрично инструментам справа)
-            // и вычитаем ширину самой кнопки, чтобы она строилась справа налево.
-            rulerX = (this.width / 2) - 100 - scaledBtnWidth;
+            rulerX = leftX;
+            leftX -= (scaledBtnWidth + 5); // Сдвигаем курсор еще левее
+        }
+        if (hasMagGlass) {
+            magGlassX = leftX;
         }
 
         if (hasPencil) { pencilX = currentX; currentX += scaledBtnWidth + 5; }
         if (hasColorPencil) { colorPencilX = currentX; currentX += scaledBtnWidth + 5; }
         if (hasEraser) { eraserX = currentX; currentX += scaledBtnWidth + 5; }
 
-        return new ToolButtonCoords(scaledBtnWidth, scaledBtnHeight, pencilX, colorPencilX, eraserX, rulerX, peekY);
-    }
-
-    private void loadPagePixels() {
-        if (this.pages != null && this.currentPageIndex >= 0 && this.currentPageIndex < this.pages.size()) {
-            SketchData data = this.pages.get(this.currentPageIndex);
-            this.pixels = data.toArray(this.canvasWidth * this.resolutionMultiplier, this.canvasHeight * this.resolutionMultiplier);
-        }
-
-        this.isCanvasDirty = true;
+        return new ToolButtonCoords(scaledBtnWidth, scaledBtnHeight, pencilX, colorPencilX, eraserX, rulerX, magGlassX, peekY);
     }
 
     public void turnPage(int newPageIndex) {
@@ -380,8 +389,7 @@ public class SketchbookScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {}
 
-    @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    private void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
 
         this.lastMouseX = mouseX;
         this.lastMouseY = mouseY;
@@ -599,9 +607,19 @@ public class SketchbookScreen extends Screen {
 
         // Рендер кнопки линейки (Отрисовываем ТОЛЬКО если линейка спрятана)
         boolean hasRuler = hasTool(net.avizvul.esquissemod.item.ModItems.RULER.get());
+        if (!hasRuler && this.isRulerActive) {
+            this.isRulerActive = false;
+            this.isQuickRulerMode = false;
+        }
+
         if (hasRuler && !this.isRulerActive) {
-            // Передаем false в isSelected, так как активной кнопки больше не существует
             renderToolButton(guiGraphics, mouseX, mouseY, false, RULER_BTN_TEX, rulerX);
+        }
+
+        // --- ДОБАВЛЯЕМ КНОПКУ ЛУПЫ ---
+        boolean hasMagGlass = hasTool(ModItems.MAGNIFYING_GLASS.get());
+        if (hasMagGlass && !this.isMagnifierLocked) {
+            renderToolButton(guiGraphics, mouseX, mouseY, false, MAGGLASS_BTN_TEX, toolCoords.magGlassX());
         }
 
         // Индикаторы размера кисти, палитра и текст "Empty"
@@ -647,6 +665,50 @@ public class SketchbookScreen extends Screen {
         }
 
         super.render(guiGraphics, mouseX, mouseY, partialTick);
+    }
+
+    @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        // Сначала отрисовываем темный фон (затемнение мира)
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+
+        boolean hasMagGlass = hasTool(ModItems.MAGNIFYING_GLASS.get());
+        if (!hasMagGlass) {
+            this.isMagnifyingMode = false;
+            this.isMagnifierLocked = false;
+        }
+
+        boolean isMagActive = this.isMagnifyingMode || this.isMagnifierLocked;
+
+        // 1. Отрисовываем весь интерфейс обычного размера
+        renderContent(guiGraphics, mouseX, mouseY, partialTick);
+
+        // 2. Если лупа активна - отрисовываем интерфейс ПОВТОРНО в увеличенном масштабе внутри маски!
+        if (isMagActive) {
+            int radius = 14;
+
+            // Обрезаем область отрисовки до квадрата лупы 28х28 вокруг мыши
+            guiGraphics.enableScissor(mouseX - radius, mouseY - radius, mouseX + radius, mouseY + radius);
+
+            guiGraphics.pose().pushPose();
+            // Сдвигаемся к курсору, увеличиваем масштаб интерфейса в 2 раза и возвращаемся
+            guiGraphics.pose().translate(mouseX, mouseY, 0);
+            guiGraphics.pose().scale(2.0f, 2.0f, 1.0f);
+            guiGraphics.pose().translate(-mouseX, -mouseY, 0);
+
+            // Заново вызываем наш рендер контента.
+            // Благодаря матрице выше, он нарисуется ровно под мышью, но в 2 раза крупнее!
+            renderContent(guiGraphics, mouseX, mouseY, partialTick);
+
+            guiGraphics.pose().popPose();
+            guiGraphics.disableScissor(); // Выключаем обрезку
+
+            // 3. Рисуем саму графику стекла лупы поверх всего этого
+            com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+            // Поскольку центр увеличения по вашим координатам на [1], а размер 42х42:
+            guiGraphics.blit(MAGGLASS_TEX, mouseX - 14, mouseY - 14, 0.0f, 0.0f, 42, 42, 42, 42);
+            com.mojang.blaze3d.systems.RenderSystem.disableBlend();
+        }
     }
 
     private void renderToolButton(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isSelected, ResourceLocation texture, int x) {
@@ -923,6 +985,12 @@ public class SketchbookScreen extends Screen {
         int eraserX = toolCoords.eraserX();
         int peekY = toolCoords.peekY();
 
+        // --- ОТМЕНА ЛУПЫ НА ПКМ (Высший приоритет) ---
+        if (button == 1 && this.isMagnifierLocked) {
+            this.isMagnifierLocked = false;
+            return true;
+        }
+
         if (this.isRulerActive && !this.isQuickRulerMode) {
             double dx = mouseX - this.rulerX;
             double dy = mouseY - this.rulerY;
@@ -952,6 +1020,7 @@ public class SketchbookScreen extends Screen {
             int baseY = this.height - (scaledBtnHeight / 2);
             int pencilY = (this.activeTool == Tool.PENCIL) ? peekY : baseY;
             int rulerX = toolCoords.rulerX();
+            int magGlassX = toolCoords.magGlassX();
             int colorPencilY = (this.activeTool == Tool.COLOR_PENCIL) ? peekY : baseY;
             int eraserY = (this.activeTool == Tool.ERASER) ? peekY : baseY;
 
@@ -975,6 +1044,13 @@ public class SketchbookScreen extends Screen {
                 return true;
             }
 
+            // --- Клик ЛКМ по кнопке лупы (Закрепляем её) ---
+            boolean hasMagGlass = hasTool(ModItems.MAGNIFYING_GLASS.get());
+            if (hasMagGlass && !this.isMagnifierLocked && mouseX >= magGlassX && mouseX < magGlassX + scaledBtnWidth && mouseY >= baseY && mouseY < baseY + scaledBtnHeight) {
+                this.isMagnifierLocked = true;
+                return true;
+            }
+
             // --- Проверка клика по индикаторам размера активного инструмента ---
             if (this.activeTool == Tool.PENCIL && hasPencil) {
                 if (handleSizeIndicatorClick(mouseX, mouseY, pencilX, peekY)) return true;
@@ -993,6 +1069,7 @@ public class SketchbookScreen extends Screen {
                         int foundIndex = colors.indexOf(swatch.colorId());
                         if (foundIndex != -1) {
                             colorPencilStack.set(ModDataComponents.ACTIVE_COLOR_INDEX.get(), foundIndex);
+                            net.neoforged.neoforge.network.PacketDistributor.sendToServer(new net.avizvul.esquissemod.network.ChangeColorPayload(foundIndex));
                             return true;
                         }
                     }

@@ -24,6 +24,7 @@ public class ModCreativeModeTabs {
                         output.accept(ModItems.ERASER);
                         output.accept(ModItems.COLOR_PENCIL); // Это добавит обычный (пустой) карандаш
                         output.accept(ModItems.RULER);
+                        output.accept(ModItems.MAGNIFYING_GLASS);
                         output.accept(ModItems.PENCIL_CASE);
 
                         // --- НОВОЕ: Полностью заполненный цветной карандаш ---

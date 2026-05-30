@@ -71,6 +71,10 @@ public class ModItems {
     public static final DeferredItem<Item> PENCIL_CASE = ITEMS.register("pencil_case",
             () -> new PencilCaseItem(new Item.Properties().stacksTo(1)));
 
+    public static final DeferredItem<Item> MAGNIFYING_GLASS = ITEMS.register("magnifying_glass",
+            () -> new Item(new Item.Properties().stacksTo(1)));
+
+
     public net.minecraft.resources.ResourceLocation getGuiTexture() {
         // Базовая текстура без цвета (цвет мы всё так же будем накладывать поверх неё в GUI)
         return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_color_pencil.png");

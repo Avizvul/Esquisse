@@ -89,6 +89,12 @@ public class EsquisseMod {
                 TearPagePayload.STREAM_CODEC,
                 handler::handleTearPage
         );
+
+        registrar.playToServer(
+                net.avizvul.esquissemod.network.ChangeColorPayload.TYPE,
+                net.avizvul.esquissemod.network.ChangeColorPayload.STREAM_CODEC,
+                handler::handleChangeColor
+        );
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {

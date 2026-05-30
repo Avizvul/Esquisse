@@ -169,4 +169,40 @@ public class SketchbookPayloadHandler {
         }
         return false;
     }
+
+    public void handleChangeColor(final ChangeColorPayload payload, final net.neoforged.neoforge.network.handling.IPayloadContext context) {
+        context.enqueueWork(() -> {
+            net.minecraft.world.entity.player.Player player = context.player();
+
+            // Ищем цветной карандаш везде: в руках, в инвентаре и внутри пенала
+            for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+                net.minecraft.world.item.ItemStack stack = player.getInventory().getItem(i);
+
+                // Если нашли просто в инвентаре:
+                if (stack.is(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get())) {
+                    stack.set(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), payload.colorIndex());
+                    return;
+                }
+
+                // Если нашли пенал, лезем внутрь:
+                if (stack.is(net.avizvul.esquissemod.item.ModItems.PENCIL_CASE.get()) && stack.has(net.minecraft.core.component.DataComponents.CONTAINER)) {
+                    net.minecraft.world.item.component.ItemContainerContents contents = stack.get(net.minecraft.core.component.DataComponents.CONTAINER);
+                    if (contents != null) {
+                        net.minecraft.core.NonNullList<net.minecraft.world.item.ItemStack> items = net.minecraft.core.NonNullList.withSize(9, net.minecraft.world.item.ItemStack.EMPTY);
+                        contents.copyInto(items);
+                        for (int j = 0; j < items.size(); j++) {
+                            net.minecraft.world.item.ItemStack innerStack = items.get(j);
+                            if (innerStack.is(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get())) {
+                                innerStack.set(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), payload.colorIndex());
+                                // Упаковываем обновленный инвентарь обратно в пенал!
+                                stack.set(net.minecraft.core.component.DataComponents.CONTAINER, net.minecraft.world.item.component.ItemContainerContents.fromItems(items));
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
 }
