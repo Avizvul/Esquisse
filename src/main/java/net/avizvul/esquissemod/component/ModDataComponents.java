@@ -21,6 +21,7 @@ public class ModDataComponents {
                     DataComponentType.<List<SketchData>>builder()
                             // Используем .listOf(), чтобы игра поняла, что это список объектов SketchData [1]
                             .persistent(SketchData.CODEC.listOf())
+                            .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.collection(java.util.ArrayList::new, SketchData.STREAM_CODEC))
                             .build()
             );
 

@@ -31,29 +31,33 @@ public class SketchData {
             }
     );
 
-    // --- ОПТИМАЛЬНЫЙ СЕТЕВОЙ КОДЕК (Сжатие GZIP для обхода лимита 32KB) ---
+    // --- ОПТИМАЛЬНЫЙ СЕТЕВОЙ КОДЕК (Сжатие пустых пикселей) ---
     public static final net.minecraft.network.codec.StreamCodec<io.netty.buffer.ByteBuf, SketchData> STREAM_CODEC = net.minecraft.network.codec.StreamCodec.of(
             (buf, data) -> {
                 int w = 126;
                 int h = 192;
                 int[][] pixels2D = data.toArray(w, h);
 
-                try {
-                    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-                    // Используем try-with-resources для автоматического и безопасного закрытия потоков
-                    try (java.util.zip.GZIPOutputStream gzip = new java.util.zip.GZIPOutputStream(baos);
-                         java.io.DataOutputStream dos = new java.io.DataOutputStream(gzip)) {
-                        for (int x = 0; x < w; x++) {
-                            for (int y = 0; y < h; y++) {
-                                dos.writeInt(pixels2D[x][y]);
-                            }
+                // 1. Считаем количество непустых пикселей
+                int coloredPixels = 0;
+                for (int x = 0; x < w; x++) {
+                    for (int y = 0; y < h; y++) {
+                        if (pixels2D[x][y] != 0) coloredPixels++;
+                    }
+                }
+
+                // 2. Записываем их количество
+                buf.writeInt(coloredPixels);
+
+                // 3. Записываем координаты и цвет только закрашенных точек
+                for (int x = 0; x < w; x++) {
+                    for (int y = 0; y < h; y++) {
+                        if (pixels2D[x][y] != 0) {
+                            buf.writeShort(x);
+                            buf.writeShort(y);
+                            buf.writeInt(pixels2D[x][y]);
                         }
                     }
-                    byte[] compressed = baos.toByteArray();
-                    buf.writeInt(compressed.length);
-                    buf.writeBytes(compressed);
-                } catch (Exception e) {
-                    buf.writeInt(0);
                 }
             },
             buf -> {
@@ -61,22 +65,17 @@ public class SketchData {
                 int h = 192;
                 int[][] pixels2D = new int[w][h];
 
-                int len = buf.readInt();
-                if (len > 0) {
-                    byte[] compressed = new byte[len];
-                    buf.readBytes(compressed);
+                // 1. Читаем количество закрашенных точек
+                int coloredPixels = buf.readInt();
 
-                    // Декомпрессия с защитой от поврежденных данных
-                    try (java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(compressed);
-                         java.util.zip.GZIPInputStream gzip = new java.util.zip.GZIPInputStream(bais);
-                         java.io.DataInputStream dis = new java.io.DataInputStream(gzip)) {
-                        for (int x = 0; x < w; x++) {
-                            for (int y = 0; y < h; y++) {
-                                pixels2D[x][y] = dis.readInt();
-                            }
-                        }
-                    } catch (Exception e) {
-                        // Если пакет повредился, вернется то, что успело загрузиться
+                // 2. Восстанавливаем их на холсте
+                for (int i = 0; i < coloredPixels; i++) {
+                    int x = buf.readShort();
+                    int y = buf.readShort();
+                    int color = buf.readInt();
+
+                    if (x >= 0 && x < w && y >= 0 && y < h) {
+                        pixels2D[x][y] = color;
                     }
                 }
                 return SketchData.fromArray(pixels2D);

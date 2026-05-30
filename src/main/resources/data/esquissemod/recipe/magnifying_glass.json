@@ -5,16 +5,13 @@
     "C": {
       "item": "minecraft:copper_ingot"
     },
-    "N": {
-      "item": "minecraft:copper_nugget"
-    },
     "G": {
       "item": "minecraft:glass"
     }
   },
   "pattern": [
     "  G",
-    " N ",
+    " C ",
     "C  "
   ],
   "result": {
