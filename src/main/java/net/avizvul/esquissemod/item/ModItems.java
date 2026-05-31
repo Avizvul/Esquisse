@@ -59,7 +59,9 @@ public class ModItems {
                     .durability(256)
                     // Инициализируем пустой список цветов и нулевой индекс при выдаче предмета
                     .component(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>())
-                    .component(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0)));
+                    .component(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0)
+                    .component(ModDataComponents.BRUSH_SIZE.get(), 1)
+                    .component(ModDataComponents.BRUSH_HARDNESS.get(), 3)));
 
     public static final DeferredItem<Item> SMUDGE = ITEMS.register("smudge",
             () -> new DrawingToolItem(new Item.Properties().durability(256)
