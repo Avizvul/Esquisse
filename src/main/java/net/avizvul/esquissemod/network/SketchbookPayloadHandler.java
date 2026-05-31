@@ -8,7 +8,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -205,7 +204,7 @@ public class SketchbookPayloadHandler {
         });
     }
 
-    public void handleChangeToolSettings(final ToolSettingsPayload payload, final net.neoforged.neoforge.network.handling.IPayloadContext context) {
+    public void handleToolSettings(final ToolSettingsPayload payload, final net.neoforged.neoforge.network.handling.IPayloadContext context) {
         context.enqueueWork(() -> {
             net.minecraft.world.entity.player.Player player = context.player();
 

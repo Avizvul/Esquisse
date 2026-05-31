@@ -8,9 +8,6 @@ import net.avizvul.esquissemod.item.ModItems;
 import net.avizvul.esquissemod.menu.ModMenuTypes;
 import net.avizvul.esquissemod.network.ChangeColorPayload;
 import net.avizvul.esquissemod.network.TearPagePayload;
-import net.minecraft.world.item.CreativeModeTabs;
-import net.neoforged.fml.event.lifecycle.ModLifecycleEvent;
-import org.checkerframework.checker.units.qual.N;
 import org.slf4j.Logger;
 
 import net.avizvul.esquissemod.network.SketchbookPayloadHandler;
