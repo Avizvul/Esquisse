@@ -553,7 +553,11 @@ public class SketchbookScreen extends Screen {
 
                 int centerX = (int) ((lMouseX - canvasScreenLeft) / physicalCellSize);
                 int centerY = (int) ((lMouseY - renderY) / physicalCellSize);
-                int offset = this.brushSize / 2;
+                int actualSize = this.brushSize;
+                if (this.activeTool == Tool.SMUDGE) {
+                    actualSize = (this.brushSize == 1) ? 2 : (this.brushSize == 2) ? 5 : 12;
+                }
+                int offset = actualSize / 2;
 
                 // Умный предпросмотр
                 int previewColor = (this.activeTool == Tool.ERASER) ? 0x60FF0000 : 0x60000000;
@@ -571,8 +575,8 @@ public class SketchbookScreen extends Screen {
                 }
 
                 // Отрисовка самого квадрата предпросмотра на холсте
-                for (int x = centerX - offset; x < centerX - offset + this.brushSize; x++) {
-                    for (int y = centerY - offset; y < centerY - offset + this.brushSize; y++) {
+                for (int x = centerX - offset; x < centerX - offset + actualSize; x++) {
+                    for (int y = centerY - offset; y < centerY - offset + actualSize; y++) {
                         if (x >= 0 && x < this.canvasWidth * this.resolutionMultiplier &&
                                 y >= 0 && y < this.canvasHeight * this.resolutionMultiplier) {
 
@@ -873,25 +877,25 @@ public class SketchbookScreen extends Screen {
             }
         }
     }
-    // Отрисовка индикаторов размера (лесенка: 3x3, 5x5, 7x7)
+
+    // Отрисовка индикаторов размера
     private void renderSizeIndicators(GuiGraphics guiGraphics, int mouseX, int mouseY, int toolX, int toolY) {
-        int bottomY = toolY - 4; // Отступ от верхней границы кнопки инструмента
-        int[] sizes = {3, 5, 7}; // Размеры квадратов
-        int[] xOffsets = {5, 11, 19}; // Смещение по X для выравнивания по центру кнопки (ширина кнопки 32)
+        int bottomY = toolY - 4;
+
+        // --- ИСПРАВЛЕНИЕ: Разные размеры кнопочек и отступов для растушевки ---
+        int[] sizes = (this.activeTool == Tool.SMUDGE) ? new int[]{2, 5, 12} : new int[]{3, 5, 7};
+        int[] xOffsets = (this.activeTool == Tool.SMUDGE) ? new int[]{5, 11, 18} : new int[]{5, 11, 19};
 
         for (int i = 1; i <= 3; i++) {
             int size = sizes[i - 1];
             int btnX = toolX + xOffsets[i - 1];
-            int btnY = bottomY - size; // Чем больше размер, тем выше он "растет" вверх
+            int btnY = bottomY - size;
 
-            // Активный размер светится белым, неактивные - тёмно-серые
             int color = (this.brushSize == i) ? 0xFFFFFFFF : 0xFF555555;
 
-            // Расширенная зона для подсветки при наведении (хитбокс +2 пикселя)
             if (mouseX >= btnX - 2 && mouseX < btnX + size + 2 && mouseY >= btnY - 2 && mouseY < btnY + size + 2) {
                 color = 0xFFFFFFAA;
             }
-
             guiGraphics.fill(btnX, btnY, btnX + size, btnY + size, color);
         }
     }
@@ -899,17 +903,18 @@ public class SketchbookScreen extends Screen {
     // Обработка клика по индикаторам
     private boolean handleSizeIndicatorClick(double mouseX, double mouseY, int toolX, int toolY) {
         int bottomY = toolY - 4;
-        int[] sizes = {3, 5, 7};
-        int[] xOffsets = {5, 11, 19};
+
+        // --- ИСПРАВЛЕНИЕ: Те же размеры и отступы, что и в рендере ---
+        int[] sizes = (this.activeTool == Tool.SMUDGE) ? new int[]{2, 5, 12} : new int[]{3, 5, 7};
+        int[] xOffsets = (this.activeTool == Tool.SMUDGE) ? new int[]{5, 11, 18} : new int[]{5, 11, 19};
 
         for (int i = 1; i <= 3; i++) {
             int size = sizes[i - 1];
             int btnX = toolX + xOffsets[i - 1];
             int btnY = bottomY - size;
 
-            // Проверяем клик с учетом расширенного хитбокса
             if (mouseX >= btnX - 2 && mouseX < btnX + size + 2 && mouseY >= btnY - 2 && mouseY < btnY + size + 2) {
-                this.brushSize = i; // Меняем толщину кисти
+                this.brushSize = i;
                 return true;
             }
         }
@@ -955,20 +960,23 @@ public class SketchbookScreen extends Screen {
             int lastCY = (int) ((this.lastLogicalY - canvasScreenTop) / physicalCellSize);
             shiftX = centerX - lastCX;
             shiftY = centerY - lastCY;
-
-            // Ограничиваем сдвиг в зависимости от силы нажатия
-            int maxShift = this.currentHardness;
-            shiftX = Math.max(-maxShift, Math.min(maxShift, shiftX));
-            shiftY = Math.max(-maxShift, Math.min(maxShift, shiftY));
+            // УБРАЛИ ЖЕСТКИЙ ЛИМИТ! Теперь вектор полностью зависит от скорости движения мыши
         }
 
-        int offset = this.brushSize / 2;
+        // --- УНИКАЛЬНЫЕ РАЗМЕРЫ ДЛЯ РАСТУШЕВКИ (2px, 5px, 12px) ---
+        int actualSize = this.brushSize;
+        if (this.activeTool == Tool.SMUDGE) {
+            actualSize = (this.brushSize == 1) ? 2 : (this.brushSize == 2) ? 5 : 12;
+        }
 
-        for (int x = centerX - offset; x < centerX - offset + this.brushSize; x++) {
-            for (int y = centerY - offset; y < centerY - offset + this.brushSize; y++) {
+        int offset = actualSize / 2;
+
+        for (int x = centerX - offset; x < centerX - offset + actualSize; x++) {
+            for (int y = centerY - offset; y < centerY - offset + actualSize; y++) {
                 if (x >= 0 && x < this.canvasWidth * this.resolutionMultiplier && y >= 0 && y < this.canvasHeight * this.resolutionMultiplier) {
 
                     if (this.activeTool == Tool.ERASER) {
+                        // ... (оставляем логику ластика без изменений)
                         if (pixels[x][y] != 0) {
                             pixels[x][y] = 0;
                             this.isCanvasDirty = true;
@@ -981,30 +989,42 @@ public class SketchbookScreen extends Screen {
 
                             // --- ЛОГИКА РАСТУШЕВКИ (SMUDGE) ---
                             if (this.activeTool == Tool.SMUDGE) {
-                                // Дизеринг (рваный край) при слабом нажатии
+                                // 1. Настройка переменных из спецификации (L=1, M=2, H=3)
+                                // shiftRate: Дистанция сдвига
+                                float shiftRate = (this.currentHardness == 1) ? 0.1f : (this.currentHardness == 2) ? 0.5f : 0.95f;
+                                // blendRate: Степень смешивания цветов (влияние исходного пикселя)
+                                float blendRate = (this.currentHardness == 1) ? 0.2f : (this.currentHardness == 2) ? 0.5f : 0.85f;
+
+                                // Дизеринг (рваный край) для режима L (Light) сохраняем для органичности
                                 if (this.currentHardness == 1) {
-                                    boolean isEdge = (x == centerX - offset || x == centerX - offset + this.brushSize - 1 || y == centerY - offset || y == centerY - offset + this.brushSize - 1);
+                                    boolean isEdge = (x == centerX - offset || x == centerX - offset + actualSize - 1 || y == centerY - offset || y == centerY - offset + actualSize - 1);
                                     if (isEdge && Math.random() > 0.4) continue;
                                 }
 
-                                // Берем цвет сзади кисти
-                                int sourceX = Math.max(0, Math.min(this.canvasWidth * this.resolutionMultiplier - 1, x - shiftX));
-                                int sourceY = Math.max(0, Math.min(this.canvasHeight * this.resolutionMultiplier - 1, y - shiftY));
+                                // 2. Вычисление Исходной Позиции: Исходная = Текущая - (Вектор * Коэфф. Сдвига)
+                                int sourceX = (int) Math.round(x - shiftX * shiftRate);
+                                int sourceY = (int) Math.round(y - shiftY * shiftRate);
 
-                                int sourceColor = pixels[sourceX][sourceY];
-                                if (sourceColor != 0) {
-                                    // Прозрачность смазывания зависит от нажатия
-                                    int alpha = (this.currentHardness == 1) ? 20 : (this.currentHardness == 2) ? 60 : 140;
-                                    int blendSource = (alpha << 24) | (sourceColor & 0xFFFFFF);
+                                // Защита границ холста
+                                sourceX = Math.max(0, Math.min(this.canvasWidth * this.resolutionMultiplier - 1, sourceX));
+                                sourceY = Math.max(0, Math.min(this.canvasHeight * this.resolutionMultiplier - 1, sourceY));
 
-                                    int blendedColor = net.avizvul.esquissemod.util.ColorUtils.blendColors(pixels[x][y], blendSource);
-                                    if (pixels[x][y] != blendedColor) {
-                                        pixels[x][y] = blendedColor;
-                                        this.isCanvasDirty = true;
-                                        this.strokePixels[x][y] = true;
-                                    }
+                                int sourceColor = pixels[sourceX][sourceY]; // Взятый Цвет
+                                int destColor = pixels[x][y];               // Цвет Назначения
+
+                                // Оптимизация: если мы водим растушевкой по пустому месту, ничего не делаем
+                                if (sourceColor == 0 && destColor == 0) continue;
+
+                                // 3. Применение Математической Концепции: Новый Цвет = Lerp(Dest, Source, BlendRate)
+                                int newColor = net.avizvul.esquissemod.util.ColorUtils.lerpColor(destColor, sourceColor, blendRate);
+
+                                if (pixels[x][y] != newColor) {
+                                    pixels[x][y] = newColor;
+                                    this.isCanvasDirty = true;
+                                    this.strokePixels[x][y] = true;
                                 }
                             }
+
                             // --- ЛОГИКА ОБЫЧНЫХ КАРАНДАШЕЙ ---
                             else {
                                 int brushRgb = 0x111111;
@@ -1039,9 +1059,12 @@ public class SketchbookScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         boolean hasPencil = hasTool(ModItems.PENCIL.get());
         boolean hasEraser = hasTool(ModItems.ERASER.get());
+        boolean hasSmudge = hasTool(ModItems.SMUDGE.get()); // ИСПРАВЛЕНИЕ 1: Теперь доступно везде!
+
         ItemStack colorPencilStack = getColorPencilStack();
         boolean hasColorPencil = !colorPencilStack.isEmpty();
         boolean hasRuler = hasTool(net.avizvul.esquissemod.item.ModItems.RULER.get());
+        boolean hasMagGlass = hasTool(ModItems.MAGNIFYING_GLASS.get());
         boolean hasColors = hasColorPencil && !colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>()).isEmpty();
 
         ToolButtonCoords toolCoords = getToolButtonCoords();
@@ -1050,6 +1073,9 @@ public class SketchbookScreen extends Screen {
         int pencilX = toolCoords.pencilX();
         int colorPencilX = toolCoords.colorPencilX();
         int eraserX = toolCoords.eraserX();
+        int smudgeX = toolCoords.smudgeX();
+        int rulerX = toolCoords.rulerX();
+        int magGlassX = toolCoords.magGlassX();
         int peekY = toolCoords.peekY();
 
         // --- ОТМЕНА ЛУПЫ НА ПКМ (Высший приоритет) ---
@@ -1058,6 +1084,7 @@ public class SketchbookScreen extends Screen {
             return true;
         }
 
+        // --- ЛОГИКА ЛИНЕЙКИ (Нажатие на саму линейку) ---
         if (this.isRulerActive && !this.isQuickRulerMode) {
             double dx = mouseX - this.rulerX;
             double dy = mouseY - this.rulerY;
@@ -1075,22 +1102,22 @@ public class SketchbookScreen extends Screen {
                         this.isRulerDragging = true;
                     }
                     return true;
-                } else if (button == 1) { // ПКМ - быстрое скрытие линейки
+                } else if (button == 1) { // ПКМ - быстрое скрытие
                     this.isRulerActive = false;
                     return true;
                 }
             }
         }
 
-        // 1. Проверяем клики по инструментам интерфейса (только ЛКМ)
+        // --- ЛЕВЫЙ КЛИК (ЛКМ) ПО ИНТЕРФЕЙСУ ---
         if (button == 0) {
             int baseY = this.height - (scaledBtnHeight / 2);
             int pencilY = (this.activeTool == Tool.PENCIL) ? peekY : baseY;
-            int rulerX = toolCoords.rulerX();
-            int magGlassX = toolCoords.magGlassX();
             int colorPencilY = (this.activeTool == Tool.COLOR_PENCIL) ? peekY : baseY;
             int eraserY = (this.activeTool == Tool.ERASER) ? peekY : baseY;
+            int smudgeY = (this.activeTool == Tool.SMUDGE) ? peekY : baseY;
 
+            // 1. Выбор инструментов
             if (hasPencil && mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth && mouseY >= pencilY && mouseY < pencilY + scaledBtnHeight) {
                 this.activeTool = Tool.PENCIL;
                 return true;
@@ -1103,36 +1130,32 @@ public class SketchbookScreen extends Screen {
                 this.activeTool = Tool.ERASER;
                 return true;
             }
-            int rulerY = this.isRulerActive ? peekY : baseY;
-            // --- Клик ЛКМ по кнопке линейки (Вытаскиваем её) ---
-            // Теперь кнопка есть только в позиции baseY
+            // ИСПРАВЛЕНИЕ 2: Вернули проверку выбора Растушевки!
+            if (hasSmudge && mouseX >= smudgeX && mouseX < smudgeX + scaledBtnWidth && mouseY >= smudgeY && mouseY < smudgeY + scaledBtnHeight) {
+                this.activeTool = Tool.SMUDGE;
+                return true;
+            }
+
+            // Вызов Лупы и Линейки
             if (hasRuler && !this.isRulerActive && mouseX >= rulerX && mouseX < rulerX + scaledBtnWidth && mouseY >= baseY && mouseY < baseY + scaledBtnHeight) {
                 this.isRulerActive = true;
                 return true;
             }
-
-            // --- Клик ЛКМ по кнопке лупы (Закрепляем её) ---
-            boolean hasMagGlass = hasTool(ModItems.MAGNIFYING_GLASS.get());
             if (hasMagGlass && !this.isMagnifierLocked && mouseX >= magGlassX && mouseX < magGlassX + scaledBtnWidth && mouseY >= baseY && mouseY < baseY + scaledBtnHeight) {
                 this.isMagnifierLocked = true;
                 return true;
             }
 
-            // --- Проверка клика по индикаторам размера активного инструмента ---
+            // 2. Индикаторы размера кисти и палитра
             if (this.activeTool == Tool.PENCIL && hasPencil) {
                 if (handleSizeIndicatorClick(mouseX, mouseY, pencilX, peekY)) return true;
             } else if (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil) {
-                if (hasColors) {
-                    if (handleSizeIndicatorClick(mouseX, mouseY, colorPencilX, peekY)) return true;
-                }
+                if (hasColors && handleSizeIndicatorClick(mouseX, mouseY, colorPencilX, peekY)) return true;
 
-                // Палитра проверяется всегда
                 int swatchSize = 12;
                 java.util.List<Integer> colors = colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
-
                 for (Swatch swatch : getPaletteLayout()) {
                     if (mouseX >= swatch.x() && mouseX <= swatch.x() + swatchSize && mouseY >= swatch.y() && mouseY <= swatch.y() + swatchSize) {
-
                         int foundIndex = colors.indexOf(swatch.colorId());
                         if (foundIndex != -1) {
                             colorPencilStack.set(ModDataComponents.ACTIVE_COLOR_INDEX.get(), foundIndex);
@@ -1143,265 +1166,127 @@ public class SketchbookScreen extends Screen {
                 }
             } else if (this.activeTool == Tool.ERASER && hasEraser) {
                 if (handleSizeIndicatorClick(mouseX, mouseY, eraserX, peekY)) return true;
+            } else if (this.activeTool == Tool.SMUDGE && hasSmudge) {
+                if (handleSizeIndicatorClick(mouseX, mouseY, smudgeX, peekY)) return true; // ИСПРАВЛЕНИЕ 3: Выбор размера для растушевки
             }
 
-            // --- ЛОГИКА ЛИНЕЙКИ (Нажатие) ---
-            if (this.isRulerActive && !this.isQuickRulerMode) {
-                double dx = mouseX - this.rulerX;
-                double dy = mouseY - this.rulerY;
-                double rad = Math.toRadians(-this.rulerAngle);
-                double localX = dx * Math.cos(rad) - dy * Math.sin(rad);
-                double localY = dx * Math.sin(rad) + dy * Math.cos(rad);
+            // 3. Вычисление логических координат
+            double[] logicalMouse = getLogicalMouse(mouseX, mouseY);
+            double lMouseX = logicalMouse[0];
+            double lMouseY = logicalMouse[1];
+            int renderX = (int) this.exactGuiLeft;
+            int renderY = (int) this.exactGuiTop;
 
-                // Так как якорная точка теперь на ВЕРХНЕМ крае, localY проверяется от 0 до высоты
-                if (Math.abs(localX) <= this.rulerWidth / 2.0 && localY >= 0 && localY <= this.rulerHeight) {
-                    if (button == 0) { // ЛКМ
-                        if (Screen.hasShiftDown()) {
-                            this.isRulerRotating = true;
-                            // Запоминаем изначальный сдвиг угла, чтобы линейка не дергалась!
-                            double startAngle = Math.toDegrees(Math.atan2(mouseY - this.rulerY, mouseX - this.rulerX));
-                            this.rulerAngleOffset = this.rulerAngle - startAngle;
-                        } else {
-                            this.isRulerDragging = true;
-                        }
-                        return true;
-                    } else if (button == 1) { // ПКМ по линейке для быстрого скрытия
-                        this.isRulerActive = false;
-                        return true;
-                    }
-                }
-            }
-
-            // ПКМ для быстрого скрытия линейки, если мы по ней кликнули
-            if (this.isRulerActive && button == 1) {
-                double dx = mouseX - this.rulerX;
-                double dy = mouseY - this.rulerY;
-                double rad = Math.toRadians(-this.rulerAngle);
-                if (Math.abs(dx * Math.cos(rad) - dy * Math.sin(rad)) <= this.rulerWidth / 2.0 &&
-                        Math.abs(dx * Math.sin(rad) + dy * Math.cos(rad)) <= this.rulerHeight / 2.0) {
-                    this.isRulerActive = false;
-                    return true;
-                }
-            }
-        }
-
-        // 2. Получаем логические координаты для холста и кнопок на нём
-        double[] logicalMouse = getLogicalMouse(mouseX, mouseY);
-        double lMouseX = logicalMouse[0];
-        double lMouseY = logicalMouse[1];
-
-        int renderX = (int) this.exactGuiLeft;
-        int renderY = (int) this.exactGuiTop;
-        int drawWidth = this.fileWidth * this.scale;
-
-        // --- ДОБАВЛЕНО: Читаем текущие страницы ОДИН РАЗ для всех проверок ниже ---
-        net.minecraft.world.item.ItemStack stack = this.minecraft.player.getMainHandItem();
-        if (!stack.is(ModItems.SKETCHBOOK.get())) {
-            stack = this.minecraft.player.getOffhandItem();
-        }
-        java.util.List<net.avizvul.esquissemod.component.SketchData> pages =
-                new java.util.ArrayList<>(stack.getOrDefault(ModDataComponents.SKETCHBOOK_PAGES.get(), new java.util.ArrayList<>()));
-
-        // Расчет координат синей зоны
-        int blueZoneWidth = this.deadZoneWidth * this.scale;
-        int blueZoneLeft = renderX + (this.frameWidth * this.scale);
-        int blueZoneRight = blueZoneLeft + blueZoneWidth;
-        int blueZoneTop = renderY;
-        int blueZoneBottom = renderY + (this.canvasHeight * this.scale);
-
-
-        // --- ЛОГИКА ОТРЫВА СТРАНИЦЫ ---
-        if (button == 1 && lMouseX >= blueZoneLeft && lMouseX <= blueZoneRight && lMouseY >= blueZoneTop && lMouseY <= blueZoneBottom) {
-
-            // 1. СНАЧАЛА отправляем серверу последние штрихи (сохраняем рисунок)
-            net.neoforged.neoforge.network.PacketDistributor.sendToServer(
-                    new SketchbookSavePayload(
-                            this.currentPageIndex,
-                            net.avizvul.esquissemod.component.SketchData.fromArray(this.pixels),
-                            this.pencilPixelsUsed,
-                            this.eraserPixelsUsed
-                    )
-            );
-
-            // 2. ЗАТЕМ сразу отправляем команду на отрыв (теперь сервер знает о рисунке)
-            net.neoforged.neoforge.network.PacketDistributor.sendToServer(
-                    new TearPagePayload(this.currentPageIndex)
-            );
-
-            // 3. Удаляем страницу из локального списка на клиенте
-            pages.remove(this.currentPageIndex);
-
-            if (pages.isEmpty()) {
-                // Если мы оторвали самую последнюю существующую страницу — закрываем скетчбук
-                this.onClose();
-            } else {
-                // Корректируем индекс, если мы оторвали страницу в самом конце
-                if (this.currentPageIndex >= pages.size()) {
-                    this.currentPageIndex = pages.size() - 1;
-                }
-
-                // ВАЖНО: сохраняем уменьшенный список обратно в предмет на клиенте
-                stack.set(ModDataComponents.SKETCHBOOK_PAGES.get(), pages);
-
-                // Подгружаем на холст ту страницу, которая теперь находится под этим индексом
-                int w = this.canvasWidth * this.resolutionMultiplier;
-                int h = this.canvasHeight * this.resolutionMultiplier;
-                this.pixels = pages.get(this.currentPageIndex).toArray(w, h);
-
-                // Сигнализируем, что холст изменился и его нужно перерисовать!
-                this.isCanvasDirty = true;
-            }
-
-            return true;
-        }
-
-        // 3. Проверка клика по кнопке поворота (и ЛКМ, и ПКМ)
-        int btnFileWidth = 8;
-        int btnFileHeight = 8;
-        int btnX = renderX;
-        int btnY = renderY + ((this.fileHeight - btnFileHeight) / 2) * this.scale;
-
-        if (lMouseX >= btnX && lMouseX < btnX + (btnFileWidth * this.scale) &&
-                lMouseY >= btnY && lMouseY < btnY + (btnFileHeight * this.scale)) {
-
-            if (button == 0) {
-                this.isRotating = true; // ЛКМ - Вращать
-                return true;
-            } else if (button == 1) { // ПКМ - Сброс угла
-                this.rotationAngle = 0.0f;
-                clampSketchbook();
-                return true;
-            }
-        }
-
-        // 1. Проверяем клики по инструментам интерфейса (только ЛКМ)
-        if (button == 0) {
-            int baseY = this.height - (scaledBtnHeight / 2);
-            int pencilY = (this.activeTool == Tool.PENCIL) ? peekY : baseY;
-            int colorPencilY = (this.activeTool == Tool.COLOR_PENCIL) ? peekY : baseY; // ДОБАВЛЕНО
-            int eraserY = (this.activeTool == Tool.ERASER) ? peekY : baseY;
-
-            if (hasPencil && mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth && mouseY >= pencilY && mouseY < pencilY + scaledBtnHeight) {
-                this.activeTool = Tool.PENCIL;
-                return true;
-            }
-            // ДОБАВЛЕНО: Клик по кнопке цветного карандаша
-            if (hasColorPencil && mouseX >= colorPencilX && mouseX < colorPencilX + scaledBtnWidth && mouseY >= colorPencilY && mouseY < colorPencilY + scaledBtnHeight) {
-                this.activeTool = Tool.COLOR_PENCIL;
-                return true;
-            }
-            if (hasEraser && mouseX >= eraserX && mouseX < eraserX + scaledBtnWidth && mouseY >= eraserY && mouseY < eraserY + scaledBtnHeight) {
-                this.activeTool = Tool.ERASER;
+            // 4. Кнопка поворота
+            int btnFileWidth = 8;
+            int btnFileHeight = 8;
+            int btnX = renderX;
+            int btnY = renderY + ((this.fileHeight - btnFileHeight) / 2) * this.scale;
+            if (lMouseX >= btnX && lMouseX < btnX + (btnFileWidth * this.scale) && lMouseY >= btnY && lMouseY < btnY + (btnFileHeight * this.scale)) {
+                this.isRotating = true;
                 return true;
             }
 
-            // --- Проверка клика по индикаторам размера активного инструмента ---
-            if (this.activeTool == Tool.PENCIL && hasPencil) {
-                if (handleSizeIndicatorClick(mouseX, mouseY, pencilX, peekY)) return true;
-            } else if (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil) {
-                if (hasColors) {
-                    if (handleSizeIndicatorClick(mouseX, mouseY, colorPencilX, peekY)) return true;
-                }
+            // 5. Перелистывание страниц
+            int drawWidth = this.fileWidth * this.scale;
+            TabCoords coords = getTabCoords(renderX, renderY, drawWidth);
+            net.minecraft.world.item.ItemStack stack = this.minecraft.player.getMainHandItem();
+            if (!stack.is(ModItems.SKETCHBOOK.get())) stack = this.minecraft.player.getOffhandItem();
+            java.util.List<net.avizvul.esquissemod.component.SketchData> pages = new java.util.ArrayList<>(stack.getOrDefault(ModDataComponents.SKETCHBOOK_PAGES.get(), new java.util.ArrayList<>()));
 
-                // Палитра проверяется всегда
-                int swatchSize = 12;
-                java.util.List<Integer> colors = colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
-                for (Swatch swatch : getPaletteLayout()) { // Вызов без аргументов!
-                    if (mouseX >= swatch.x() && mouseX <= swatch.x() + swatchSize && mouseY >= swatch.y() && mouseY <= swatch.y() + swatchSize) {
-                        int foundIndex = colors.indexOf(swatch.colorId());
-                        if (foundIndex != -1) { // Клик засчитывается, только если цвет загружен в карандаш
-                            colorPencilStack.set(ModDataComponents.ACTIVE_COLOR_INDEX.get(), foundIndex);
-                            return true;
-                        }
-                    }
-                }
-            } else if (this.activeTool == Tool.ERASER && hasEraser) {
-                if (handleSizeIndicatorClick(mouseX, mouseY, eraserX, peekY)) return true;
-            }
-        }
-
-        // 4. Логика, работающая только на ЛКМ (перетаскивание и рисование)
-        if (button == 0) {
-
-            int scaledFrameWidth = this.frameWidth * this.scale;
-            int scaledImageHeight = this.fileHeight * this.scale;
-
-            // --- ЗАКЛАДКИ ПОД БЛОКНОТОМ ---
             int scaledTabWidth = this.tabWidth * this.tabScale;
             int scaledTabHeight = this.tabHeight * this.tabScale;
-
-            // Вызываем наш метод и получаем готовые координаты
-            TabCoords coords = getTabCoords(renderX, renderY, drawWidth);
-            int tabX = coords.tabX();
-            int backTabY = coords.backTabY();
-            int forwardTabY = coords.forwardTabY();
-
-            // Клик "Назад"
-            if (this.currentPageIndex > 0 &&
-                    lMouseX >= tabX && lMouseX < tabX + scaledTabWidth &&
-                    lMouseY >= backTabY && lMouseY < backTabY + scaledTabHeight) {
-
-                // ИСПРАВЛЕНО: передаем число (индекс предыдущей страницы)
+            if (this.currentPageIndex > 0 && lMouseX >= coords.tabX() && lMouseX < coords.tabX() + scaledTabWidth && lMouseY >= coords.backTabY() && lMouseY < coords.backTabY() + scaledTabHeight) {
                 turnPage(this.currentPageIndex - 1);
                 return true;
             }
-
-            // Клик "Вперед"
-            if (this.currentPageIndex < pages.size() - 1 &&
-                    lMouseX >= tabX && lMouseX < tabX + scaledTabWidth &&
-                    lMouseY >= forwardTabY && lMouseY < forwardTabY + scaledTabHeight) {
-
-                // ИСПРАВЛЕНО: передаем число (индекс следующей страницы)
+            if (this.currentPageIndex < pages.size() - 1 && lMouseX >= coords.tabX() && lMouseX < coords.tabX() + scaledTabWidth && lMouseY >= coords.forwardTabY() && lMouseY < coords.forwardTabY() + scaledTabHeight) {
                 turnPage(this.currentPageIndex + 1);
                 return true;
             }
 
-            // Проверка перетаскивания (рамка)
-            if (lMouseX >= renderX && lMouseX < (renderX + scaledFrameWidth)
-                    && lMouseY >= renderY && lMouseY < (renderY + scaledImageHeight)) {
+            // 6. Рисование и перетаскивание холста
+            int scaledFrameWidth = this.frameWidth * this.scale;
+            int scaledImageHeight = this.fileHeight * this.scale;
+
+            if (lMouseX >= renderX && lMouseX < (renderX + scaledFrameWidth) && lMouseY >= renderY && lMouseY < (renderY + scaledImageHeight)) {
                 this.isDragging = true;
                 return true;
             } else {
-                // Проверка рисования (холст)
                 int canvasScreenLeft = renderX + ((this.frameWidth + this.deadZoneWidth) * this.scale);
                 int scaledCanvasWidth = this.canvasWidth * this.scale;
 
-                if (lMouseX >= canvasScreenLeft && lMouseX < (canvasScreenLeft + scaledCanvasWidth)
-                        && lMouseY >= renderY && lMouseY < (renderY + scaledImageHeight)) {
-                    // ПРИМЕНЯЕМ МАГНИТ ДЛЯ РИСОВАНИЯ
-
-                    // ПРИМЕНЯЕМ МАГНИТ ДЛЯ РИСОВАНИЯ
+                if (lMouseX >= canvasScreenLeft && lMouseX < (canvasScreenLeft + scaledCanvasWidth) && lMouseY >= renderY && lMouseY < (renderY + scaledImageHeight)) {
                     double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
-                    double magX = magnetMouse[ 0 ];
-                    double magY = magnetMouse[ 1 ];
+                    double[] drawLogical = getLogicalMouse(magnetMouse[0], magnetMouse[1]);
 
-                    double[] drawLogical = getLogicalMouse(magX, magY);
-                    double drawX = drawLogical[ 0 ];
-                    double drawY = drawLogical[ 1 ];
-
-                    boolean hasSmudge = hasTool(ModItems.SMUDGE.get());
                     if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors) || (this.activeTool == Tool.SMUDGE && hasSmudge)) {
                         this.isDrawing = true;
-                        this.lastLogicalX = drawX;
-                        this.lastLogicalY = drawY;
-                        drawPixel(drawX, drawY);
+                        this.lastLogicalX = drawLogical[0];
+                        this.lastLogicalY = drawLogical[1];
+                        drawPixel(drawLogical[0], drawLogical[1]);
                     } else if (this.activeTool == Tool.ERASER && hasEraser) {
                         this.isErasing = true;
-                        this.lastLogicalX = drawX;
-                        this.lastLogicalY = drawY;
-                        drawPixel(drawX, drawY);
+                        this.lastLogicalX = drawLogical[0];
+                        this.lastLogicalY = drawLogical[1];
+                        drawPixel(drawLogical[0], drawLogical[1]);
                     }
-
                     return true;
                 }
             }
         }
 
-        // --- НОВОЕ: Обработка ПРАВОГО клика (ПКМ) по инструментам ---
+        // --- ПРАВЫЙ КЛИК (ПКМ) ---
         if (button == 1) {
+            double[] logicalMouse = getLogicalMouse(mouseX, mouseY);
+            double lMouseX = logicalMouse[0];
+            double lMouseY = logicalMouse[1];
+            int renderX = (int) this.exactGuiLeft;
+            int renderY = (int) this.exactGuiTop;
+
+            // 1. Сброс поворота холста
+            int btnFileWidth = 8;
+            int btnFileHeight = 8;
+            int btnX = renderX;
+            int btnY = renderY + ((this.fileHeight - btnFileHeight) / 2) * this.scale;
+            if (lMouseX >= btnX && lMouseX < btnX + (btnFileWidth * this.scale) && lMouseY >= btnY && lMouseY < btnY + (btnFileHeight * this.scale)) {
+                this.rotationAngle = 0.0f;
+                clampSketchbook();
+                return true;
+            }
+
+            // 2. Отрыв страницы
+            int blueZoneWidth = this.deadZoneWidth * this.scale;
+            int blueZoneLeft = renderX + (this.frameWidth * this.scale);
+            int blueZoneTop = renderY;
+            int blueZoneBottom = renderY + (this.canvasHeight * this.scale);
+
+            if (lMouseX >= blueZoneLeft && lMouseX <= blueZoneLeft + blueZoneWidth && lMouseY >= blueZoneTop && lMouseY <= blueZoneBottom) {
+                net.neoforged.neoforge.network.PacketDistributor.sendToServer(new SketchbookSavePayload(this.currentPageIndex, net.avizvul.esquissemod.component.SketchData.fromArray(this.pixels), this.pencilPixelsUsed, this.eraserPixelsUsed));
+                net.neoforged.neoforge.network.PacketDistributor.sendToServer(new TearPagePayload(this.currentPageIndex));
+
+                net.minecraft.world.item.ItemStack stack = this.minecraft.player.getMainHandItem();
+                if (!stack.is(ModItems.SKETCHBOOK.get())) stack = this.minecraft.player.getOffhandItem();
+                java.util.List<net.avizvul.esquissemod.component.SketchData> pages = new java.util.ArrayList<>(stack.getOrDefault(ModDataComponents.SKETCHBOOK_PAGES.get(), new java.util.ArrayList<>()));
+
+                pages.remove(this.currentPageIndex);
+                if (pages.isEmpty()) {
+                    this.onClose();
+                } else {
+                    if (this.currentPageIndex >= pages.size()) this.currentPageIndex = pages.size() - 1;
+                    stack.set(ModDataComponents.SKETCHBOOK_PAGES.get(), pages);
+                    int w = this.canvasWidth * this.resolutionMultiplier;
+                    int h = this.canvasHeight * this.resolutionMultiplier;
+                    this.pixels = pages.get(this.currentPageIndex).toArray(w, h);
+                    this.isCanvasDirty = true;
+                }
+                return true;
+            }
+
+            // 3. Изменение твердости карандаша (L, M, H)
             boolean clickedPencil = hasPencil && mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
             boolean clickedColorPencil = hasColors && mouseX >= colorPencilX && mouseX < colorPencilX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
-            boolean clickedSmudge = hasSmudge && mouseX >= toolCoords.smudgeX() && mouseX < toolCoords.smudgeX() + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
+            boolean clickedSmudge = hasSmudge && mouseX >= smudgeX && mouseX < smudgeX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
 
             if (clickedPencil || clickedColorPencil || clickedSmudge) {
                 this.currentHardness++;
@@ -1409,7 +1294,7 @@ public class SketchbookScreen extends Screen {
                 return true;
             }
 
-            // --- ДОБАВЛЕНО: Прячем линейку при ПКМ по её высунутой кнопке ---
+            // 4. Скрытие линейки
             boolean clickedRuler = hasRuler && mouseX >= rulerX && mouseX < rulerX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
             if (clickedRuler && this.isRulerActive) {
                 this.isRulerActive = false;
@@ -1422,39 +1307,33 @@ public class SketchbookScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-
         if (this.isRulerDragging) {
             this.rulerX += dragX;
             this.rulerY += dragY;
             return true;
         } else if (this.isRulerRotating) {
-            // Вращаем с учетом изначального клика (оффсета) - больше никаких дерганий на левой стороне!
             double angleRad = Math.atan2(mouseY - this.rulerY, mouseX - this.rulerX);
             this.rulerAngle = (float) (Math.toDegrees(angleRad) + this.rulerAngleOffset);
             return true;
         } else if (this.isDrawing) {
             double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
-            double[] lMouse = getLogicalMouse(magnetMouse[ 0 ], magnetMouse[ 1 ]);
-            drawPixel(lMouse[ 0 ], lMouse[ 1 ]);
-            this.lastLogicalX = lMouse[ 0 ];
-            this.lastLogicalY = lMouse[ 1 ];
+            double[] lMouse = getLogicalMouse(magnetMouse[0], magnetMouse[1]);
+            drawPixel(lMouse[0], lMouse[1]);
+            this.lastLogicalX = lMouse[0];
+            this.lastLogicalY = lMouse[1];
             return true;
         } else if (this.isErasing) {
             double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
-            double[] lMouse = getLogicalMouse(magnetMouse[ 0 ], magnetMouse[ 1 ]);
-            drawPixel(lMouse[ 0 ], lMouse[ 1 ]);
-            this.lastLogicalX = lMouse[ 0 ];
-            this.lastLogicalY = lMouse[ 1 ];
+            double[] lMouse = getLogicalMouse(magnetMouse[0], magnetMouse[1]);
+            drawPixel(lMouse[0], lMouse[1]);
+            this.lastLogicalX = lMouse[0];
+            this.lastLogicalY = lMouse[1];
             return true;
-        }
-
-        if (this.isRotating) {
+        } else if (this.isRotating) {
             double cx = this.exactGuiLeft + (this.fileWidth * this.scale) / 2.0;
             double cy = this.exactGuiTop + (this.fileHeight * this.scale) / 2.0;
-
             double angleRad = Math.atan2(mouseY - cy, mouseX - cx);
             this.rotationAngle = (float) Math.toDegrees(angleRad) - 180f;
-
             clampSketchbook();
             return true;
         } else if (this.isDragging) {
@@ -1462,15 +1341,8 @@ public class SketchbookScreen extends Screen {
             this.exactGuiTop += dragY;
             clampSketchbook();
             return true;
-        } else if (this.isDrawing) {
-            double[] lMouse = getLogicalMouse(mouseX, mouseY);
-            drawPixel(lMouse[0], lMouse[1]);
-            return true;
-        } else if (this.isErasing) {
-            double[] lMouse = getLogicalMouse(mouseX, mouseY);
-            drawPixel(lMouse[0], lMouse[1]);
-            return true;
         }
+
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
