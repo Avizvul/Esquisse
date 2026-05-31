@@ -74,6 +74,16 @@ public class ModItems {
     public static final DeferredItem<Item> MAGNIFYING_GLASS = ITEMS.register("magnifying_glass",
             () -> new Item(new Item.Properties().stacksTo(1)));
 
+    public static final DeferredItem<Item> SMUDGE = ITEMS.register("smudge",
+            () -> new DrawingToolItem(new Item.Properties().durability(256)) {
+                @Override
+                public net.minecraft.resources.ResourceLocation getGuiTexture() {
+                    return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_blender.png");
+                }
+                @Override
+                public int getPeekHeight() { return 10; }
+            });
+
 
     public net.minecraft.resources.ResourceLocation getGuiTexture() {
         // Базовая текстура без цвета (цвет мы всё так же будем накладывать поверх неё в GUI)

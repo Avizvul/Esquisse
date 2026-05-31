@@ -34,8 +34,9 @@ public class SketchbookScreen extends Screen {
     private static final ResourceLocation RULER_BTN_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_ruler.png");
     private static final ResourceLocation MAGGLASS_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/magnifying_glass_gui.png");
     private static final ResourceLocation MAGGLASS_BTN_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_magnifying_glass.png");
+    private static final ResourceLocation SMUDGE_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_smudge.png");
 
-    private enum Tool { PENCIL, COLOR_PENCIL, ERASER }
+    private enum Tool { PENCIL, COLOR_PENCIL, ERASER, SMUDGE }
     private Tool activeTool = Tool.PENCIL;
 
     private final int fileWidth = 74;
@@ -102,6 +103,10 @@ public class SketchbookScreen extends Screen {
     private boolean isQuickRulerMode = false;
     private double quickRulerStartX, quickRulerStartY;
     private double lastMouseX, lastMouseY;
+
+    // Переменные для растушевки
+    private double lastLogicalX = -1;
+    private double lastLogicalY = -1;
 
     // Статические переменные для сохранения позиции
     private static double savedRulerX = -1;
@@ -223,7 +228,7 @@ public class SketchbookScreen extends Screen {
     }
 
     // Компактная структура для хранения координат кнопок инструментов
-    private record ToolButtonCoords(int scaledBtnWidth, int scaledBtnHeight, int pencilX, int colorPencilX, int eraserX, int rulerX, int magGlassX, int peekY) {}
+    private record ToolButtonCoords(int scaledBtnWidth, int scaledBtnHeight, int pencilX, int colorPencilX, int eraserX, int smudgeX, int rulerX, int magGlassX, int peekY) {}
 
     // Вспомогательный метод для расчета
     private ToolButtonCoords getToolButtonCoords() {
@@ -238,11 +243,12 @@ public class SketchbookScreen extends Screen {
         boolean hasEraser = hasTool(ModItems.ERASER.get());
         boolean hasRuler = hasTool(ModItems.RULER.get());
         boolean hasMagGlass = hasTool(ModItems.MAGNIFYING_GLASS.get());
+        boolean hasSmudge = hasTool(ModItems.SMUDGE.get());
 
         net.minecraft.world.item.ItemStack colorPencilStack = getColorPencilStack();
         boolean hasColorPencil = !colorPencilStack.isEmpty();
 
-        int pencilX = -1000, colorPencilX = -1000, eraserX = -1000, rulerX = -1000, magGlassX = -1000;
+        int pencilX = -1000, colorPencilX = -1000, eraserX = -1000, smudgeX = -1000, rulerX = -1000, magGlassX = -1000;
 
         // Размещаем линейку и лупу слева от хотбара
         int leftX = (this.width / 2) - 100 - scaledBtnWidth;
@@ -258,8 +264,9 @@ public class SketchbookScreen extends Screen {
         if (hasPencil) { pencilX = currentX; currentX += scaledBtnWidth + 5; }
         if (hasColorPencil) { colorPencilX = currentX; currentX += scaledBtnWidth + 5; }
         if (hasEraser) { eraserX = currentX; currentX += scaledBtnWidth + 5; }
+        if (hasSmudge) { smudgeX = currentX; currentX += scaledBtnWidth + 5; } // ДОБАВЛЕНО
 
-        return new ToolButtonCoords(scaledBtnWidth, scaledBtnHeight, pencilX, colorPencilX, eraserX, rulerX, magGlassX, peekY);
+        return new ToolButtonCoords(scaledBtnWidth, scaledBtnHeight, pencilX, colorPencilX, eraserX, smudgeX, rulerX, magGlassX, peekY);
     }
 
     public void turnPage(int newPageIndex) {
@@ -410,6 +417,7 @@ public class SketchbookScreen extends Screen {
         // ВНИМАНИЕ: Проверьте, что здесь указаны ваши правильные предметы из ModItems!
         boolean hasPencil = hasTool(ModItems.PENCIL.get());
         boolean hasEraser = hasTool(ModItems.ERASER.get());
+        boolean hasSmudge = hasTool(ModItems.SMUDGE.get());
 
         ItemStack colorPencilStack = getColorPencilStack();
         boolean hasColorPencil = !colorPencilStack.isEmpty();
@@ -604,6 +612,7 @@ public class SketchbookScreen extends Screen {
         if (hasPencil) renderToolButton(guiGraphics, mouseX, mouseY, this.activeTool == Tool.PENCIL, PENCIL_TEX, pencilX);
         if (hasColorPencil) renderColorToolButton(guiGraphics, mouseX, mouseY, colorPencilX, colorPencilStack);
         if (hasEraser) renderToolButton(guiGraphics, mouseX, mouseY, this.activeTool == Tool.ERASER, ERASER_TEX, eraserX);
+        if (hasSmudge) renderToolButton(guiGraphics, mouseX, mouseY, this.activeTool == Tool.SMUDGE, SMUDGE_TEX, toolCoords.smudgeX());
 
         // Рендер кнопки линейки (Отрисовываем ТОЛЬКО если линейка спрятана)
         boolean hasRuler = hasTool(net.avizvul.esquissemod.item.ModItems.RULER.get());
@@ -638,13 +647,24 @@ public class SketchbookScreen extends Screen {
             renderPalette(guiGraphics, colorPencilStack);
         } else if (this.activeTool == Tool.ERASER && hasEraser) {
             renderSizeIndicators(guiGraphics, mouseX, mouseY, eraserX, peekY);
+        } else if (this.activeTool == Tool.SMUDGE && hasSmudge) {
+            renderSizeIndicators(guiGraphics, mouseX, mouseY, toolCoords.smudgeX(), peekY);
         }
 
-        // Текст твердости (2H, HB, 4B) теперь рисуется только если инструмент может рисовать
-        if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors)) {
-            String hardnessText = (this.currentHardness == 1) ? "2H" : (this.currentHardness == 2) ? "HB" : "4B";
+        // Текст твердости теперь зависит от выбранного инструмента
+        if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors) || (this.activeTool == Tool.SMUDGE && hasSmudge)) {
+
+            String hardnessText;
+            if (this.activeTool == Tool.SMUDGE) {
+                // Для растушевки показываем L, M, H
+                hardnessText = (this.currentHardness == 1) ? "L" : (this.currentHardness == 2) ? "M" : "H";
+            } else {
+                // Для обычного и цветного карандашей возвращаем 2H, HB, 4B
+                hardnessText = (this.currentHardness == 1) ? "2H" : (this.currentHardness == 2) ? "HB" : "4B";
+            }
+
             int hardnessColor = (this.currentHardness == 1) ? 0xFFAAAAAA : (this.currentHardness == 2) ? 0xFF555555 : 0xFF222222;
-            int activeX = (this.activeTool == Tool.PENCIL) ? pencilX : colorPencilX;
+            int activeX = (this.activeTool == Tool.PENCIL) ? pencilX : (this.activeTool == Tool.SMUDGE) ? toolCoords.smudgeX() : colorPencilX;
             int hX = activeX + (scaledBtnWidth / 2) - (this.font.width(hardnessText) / 2);
             guiGraphics.drawString(this.font, hardnessText, hX, peekY - 24, hardnessColor, false);
         }
@@ -920,62 +940,93 @@ public class SketchbookScreen extends Screen {
         return new double[]{mX, mY};
     }
 
-    private void drawPixel(double lMouseX, double lMouseY, boolean isEraser) {
+    private void drawPixel(double lMouseX, double lMouseY) {
         int canvasScreenLeft = (int) this.exactGuiLeft + ((this.frameWidth + this.deadZoneWidth) * this.scale);
         int canvasScreenTop = (int) this.exactGuiTop;
         double physicalCellSize = (double) this.scale / this.resolutionMultiplier;
 
         int centerX = (int) ((lMouseX - canvasScreenLeft) / physicalCellSize);
         int centerY = (int) ((lMouseY - canvasScreenTop) / physicalCellSize);
+
+        // --- Вычисляем вектор сдвига для растушевки ---
+        int shiftX = 0, shiftY = 0;
+        if (this.lastLogicalX != -1 && this.lastLogicalY != -1) {
+            int lastCX = (int) ((this.lastLogicalX - canvasScreenLeft) / physicalCellSize);
+            int lastCY = (int) ((this.lastLogicalY - canvasScreenTop) / physicalCellSize);
+            shiftX = centerX - lastCX;
+            shiftY = centerY - lastCY;
+
+            // Ограничиваем сдвиг в зависимости от силы нажатия
+            int maxShift = this.currentHardness;
+            shiftX = Math.max(-maxShift, Math.min(maxShift, shiftX));
+            shiftY = Math.max(-maxShift, Math.min(maxShift, shiftY));
+        }
+
         int offset = this.brushSize / 2;
 
         for (int x = centerX - offset; x < centerX - offset + this.brushSize; x++) {
             for (int y = centerY - offset; y < centerY - offset + this.brushSize; y++) {
-                if (x >= 0 && x < this.canvasWidth * this.resolutionMultiplier &&
-                        y >= 0 && y < this.canvasHeight * this.resolutionMultiplier) {
+                if (x >= 0 && x < this.canvasWidth * this.resolutionMultiplier && y >= 0 && y < this.canvasHeight * this.resolutionMultiplier) {
 
-                    if (isEraser) {
+                    if (this.activeTool == Tool.ERASER) {
                         if (pixels[x][y] != 0) {
                             pixels[x][y] = 0;
                             this.isCanvasDirty = true;
                             this.eraserPixelsUsed++;
                         }
                     } else {
-                        if (this.strokePixels == null) {
-                            this.strokePixels = new boolean[this.canvasWidth * this.resolutionMultiplier][this.canvasHeight * this.resolutionMultiplier];
-                        }
+                        if (this.strokePixels == null) this.strokePixels = new boolean[this.canvasWidth * this.resolutionMultiplier][this.canvasHeight * this.resolutionMultiplier];
 
-                        // Проверяем, не красили ли мы этот пиксель в ТЕКУЩЕМ движении мыши
                         if (!this.strokePixels[x][y]) {
-                            // Цвет по умолчанию (темно-серый)
-                            int brushRgb = 0x111111;
 
-                            // Ищем цветной карандаш напрямую в инвентаре игрока
-                            net.minecraft.world.item.ItemStack colorPencil = getColorPencilStack();
+                            // --- ЛОГИКА РАСТУШЕВКИ (SMUDGE) ---
+                            if (this.activeTool == Tool.SMUDGE) {
+                                // Дизеринг (рваный край) при слабом нажатии
+                                if (this.currentHardness == 1) {
+                                    boolean isEdge = (x == centerX - offset || x == centerX - offset + this.brushSize - 1 || y == centerY - offset || y == centerY - offset + this.brushSize - 1);
+                                    if (isEdge && Math.random() > 0.4) continue;
+                                }
 
-                            if (this.activeTool == Tool.COLOR_PENCIL && !colorPencil.isEmpty()) {
-                                java.util.List<Integer> colors = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
-                                if (!colors.isEmpty()) {
-                                    int activeIndex = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
-                                    int colorId = colors.get(Math.abs(activeIndex) % colors.size());
-                                    brushRgb = net.minecraft.world.item.DyeColor.byId(colorId).getTextureDiffuseColor();
+                                // Берем цвет сзади кисти
+                                int sourceX = Math.max(0, Math.min(this.canvasWidth * this.resolutionMultiplier - 1, x - shiftX));
+                                int sourceY = Math.max(0, Math.min(this.canvasHeight * this.resolutionMultiplier - 1, y - shiftY));
+
+                                int sourceColor = pixels[sourceX][sourceY];
+                                if (sourceColor != 0) {
+                                    // Прозрачность смазывания зависит от нажатия
+                                    int alpha = (this.currentHardness == 1) ? 20 : (this.currentHardness == 2) ? 60 : 140;
+                                    int blendSource = (alpha << 24) | (sourceColor & 0xFFFFFF);
+
+                                    int blendedColor = net.avizvul.esquissemod.util.ColorUtils.blendColors(pixels[x][y], blendSource);
+                                    if (pixels[x][y] != blendedColor) {
+                                        pixels[x][y] = blendedColor;
+                                        this.isCanvasDirty = true;
+                                        this.strokePixels[x][y] = true;
+                                    }
                                 }
                             }
+                            // --- ЛОГИКА ОБЫЧНЫХ КАРАНДАШЕЙ ---
+                            else {
+                                int brushRgb = 0x111111;
+                                net.minecraft.world.item.ItemStack colorPencil = getColorPencilStack();
+                                if (this.activeTool == Tool.COLOR_PENCIL && !colorPencil.isEmpty()) {
+                                    java.util.List<Integer> colors = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+                                    if (!colors.isEmpty()) {
+                                        int activeIndex = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
+                                        brushRgb = net.minecraft.world.item.DyeColor.byId(colors.get(Math.abs(activeIndex) % colors.size())).getTextureDiffuseColor();
+                                    }
+                                }
 
-                            // Уровень прозрачности (Альфа) в зависимости от твердости H / HB / B
-                            int alpha = (this.currentHardness == 1) ? 64 : (this.currentHardness == 2) ? 128 : 255;
-                            int newColorArgb = (alpha << 24) | (brushRgb & 0xFFFFFF);
+                                int alpha = (this.currentHardness == 1) ? 64 : (this.currentHardness == 2) ? 128 : 255;
+                                int newColorArgb = (alpha << 24) | (brushRgb & 0xFFFFFF);
+                                int blendedColor = net.avizvul.esquissemod.util.ColorUtils.blendColors(pixels[x][y], newColorArgb);
 
-                            // Смешиваем старый цвет пикселя с новым! (Alpha Blending)
-                            int oldColor = pixels[x][y];
-                            int blendedColor = net.avizvul.esquissemod.util.ColorUtils.blendColors(oldColor, newColorArgb);
-
-                            // Применяем
-                            if (pixels[x][y] != blendedColor) {
-                                this.isCanvasDirty = true;
-                                pixels[x][y] = blendedColor;
-                                this.pencilPixelsUsed++;
-                                this.strokePixels[x][y] = true;
+                                if (pixels[x][y] != blendedColor) {
+                                    this.isCanvasDirty = true;
+                                    pixels[x][y] = blendedColor;
+                                    this.pencilPixelsUsed++;
+                                    this.strokePixels[x][y] = true;
+                                }
                             }
                         }
                     }
@@ -1328,13 +1379,19 @@ public class SketchbookScreen extends Screen {
                     double drawX = drawLogical[ 0 ];
                     double drawY = drawLogical[ 1 ];
 
-                    if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors)) {
+                    boolean hasSmudge = hasTool(ModItems.SMUDGE.get());
+                    if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors) || (this.activeTool == Tool.SMUDGE && hasSmudge)) {
                         this.isDrawing = true;
-                        drawPixel(drawX, drawY, false);
+                        this.lastLogicalX = drawX;
+                        this.lastLogicalY = drawY;
+                        drawPixel(drawX, drawY);
                     } else if (this.activeTool == Tool.ERASER && hasEraser) {
                         this.isErasing = true;
-                        drawPixel(drawX, drawY, true);
+                        this.lastLogicalX = drawX;
+                        this.lastLogicalY = drawY;
+                        drawPixel(drawX, drawY);
                     }
+
                     return true;
                 }
             }
@@ -1344,8 +1401,9 @@ public class SketchbookScreen extends Screen {
         if (button == 1) {
             boolean clickedPencil = hasPencil && mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
             boolean clickedColorPencil = hasColors && mouseX >= colorPencilX && mouseX < colorPencilX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
+            boolean clickedSmudge = hasSmudge && mouseX >= toolCoords.smudgeX() && mouseX < toolCoords.smudgeX() + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
 
-            if (clickedPencil || clickedColorPencil) {
+            if (clickedPencil || clickedColorPencil || clickedSmudge) {
                 this.currentHardness++;
                 if (this.currentHardness > 3) this.currentHardness = 1;
                 return true;
@@ -1377,12 +1435,16 @@ public class SketchbookScreen extends Screen {
         } else if (this.isDrawing) {
             double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
             double[] lMouse = getLogicalMouse(magnetMouse[ 0 ], magnetMouse[ 1 ]);
-            drawPixel(lMouse[ 0 ], lMouse[ 1 ], false);
+            drawPixel(lMouse[ 0 ], lMouse[ 1 ]);
+            this.lastLogicalX = lMouse[ 0 ];
+            this.lastLogicalY = lMouse[ 1 ];
             return true;
         } else if (this.isErasing) {
             double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
             double[] lMouse = getLogicalMouse(magnetMouse[ 0 ], magnetMouse[ 1 ]);
-            drawPixel(lMouse[ 0 ], lMouse[ 1 ], true);
+            drawPixel(lMouse[ 0 ], lMouse[ 1 ]);
+            this.lastLogicalX = lMouse[ 0 ];
+            this.lastLogicalY = lMouse[ 1 ];
             return true;
         }
 
@@ -1402,11 +1464,11 @@ public class SketchbookScreen extends Screen {
             return true;
         } else if (this.isDrawing) {
             double[] lMouse = getLogicalMouse(mouseX, mouseY);
-            drawPixel(lMouse[0], lMouse[1], false);
+            drawPixel(lMouse[0], lMouse[1]);
             return true;
         } else if (this.isErasing) {
             double[] lMouse = getLogicalMouse(mouseX, mouseY);
-            drawPixel(lMouse[0], lMouse[1], true);
+            drawPixel(lMouse[0], lMouse[1]);
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
@@ -1415,10 +1477,11 @@ public class SketchbookScreen extends Screen {
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (button == 0) {
-            // При отпускании левой кнопки мыши (0) мы обнуляем память о штрихе
             if (this.strokePixels != null) {
                 this.strokePixels = new boolean[this.canvasWidth * this.resolutionMultiplier][this.canvasHeight * this.resolutionMultiplier];
             }
+            this.lastLogicalX = -1;
+            this.lastLogicalY = -1;
 
             if (this.isRulerDragging) { this.isRulerDragging = false; return true; }
             if (this.isRulerRotating) { this.isRulerRotating = false; return true; }
@@ -1441,7 +1504,8 @@ public class SketchbookScreen extends Screen {
         if (Screen.hasShiftDown()) {
             // Разрешаем смену твердости только если карандаш обычный или цветной с загруженными цветами!
             if ((this.activeTool == Tool.PENCIL && hasTool(ModItems.PENCIL.get())) ||
-                    (this.activeTool == Tool.COLOR_PENCIL && hasColors)) {
+                    (this.activeTool == Tool.COLOR_PENCIL && hasColors) ||
+                    (this.activeTool == Tool.SMUDGE && hasTool(ModItems.SMUDGE.get()))) {
 
                 if (scrollY > 0) {
                     this.currentHardness = (byte) Math.min(3, this.currentHardness + 1);
