@@ -577,6 +577,13 @@ public class SketchbookScreen extends Screen {
                 // Отрисовка самого квадрата предпросмотра на холсте
                 for (int x = centerX - offset; x < centerX - offset + actualSize; x++) {
                     for (int y = centerY - offset; y < centerY - offset + actualSize; y++) {
+
+                        double dx = x - exactCX;
+                        double dy = y - exactCY;
+
+                        // ИСПРАВЛЕНИЕ: Делаем предпросмотр круглым ТОЛЬКО для растушевки
+                        if (this.activeTool == Tool.SMUDGE && Math.sqrt(dx * dx + dy * dy) > radius) continue;
+
                         if (x >= 0 && x < this.canvasWidth * this.resolutionMultiplier &&
                                 y >= 0 && y < this.canvasHeight * this.resolutionMultiplier) {
 
