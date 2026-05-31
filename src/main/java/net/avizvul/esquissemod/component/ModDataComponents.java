@@ -26,14 +26,28 @@ public class ModDataComponents {
             );
 
     // Компонент пикселей до поломки
-    public static final Supplier<DataComponentType<Integer>> UNSPENT_PIXELS =
-            DATA_COMPONENT_TYPES.register("unspent_pixels", () ->
+    public static final Supplier<DataComponentType<Integer>> UNSPENT_PIXELS = DATA_COMPONENT_TYPES.register("unspent_pixels", () ->
                     DataComponentType.<Integer>builder()
                             .persistent(Codec.INT)
                             .build()
             );
 
-    // --- КОМПОНЕНТЫ ДЛЯ МНОГОЦВЕТНОГО КАРАНДАША ---
+    // --- КОМПОНЕНТЫ НАСТРОЕК ИНСТРУМЕНТА (Размер и Жесткость) ---
+    public static final Supplier<DataComponentType<Integer>> BRUSH_SIZE =
+            DATA_COMPONENT_TYPES.register("brush_size", () ->
+                    DataComponentType.<Integer>builder()
+                            .persistent(com.mojang.serialization.Codec.INT)
+                            .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.INT)
+                            .build()
+            );
+
+    public static final Supplier<DataComponentType<Integer>> BRUSH_HARDNESS =
+            DATA_COMPONENT_TYPES.register("brush_hardness", () ->
+                    DataComponentType.<Integer>builder()
+                            .persistent(com.mojang.serialization.Codec.INT)
+                            .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.INT)
+                            .build()
+            );
 
     // Хранит список ID загруженных красителей (от 0 до 15)
     public static final Supplier<net.minecraft.core.component.DataComponentType<java.util.List<Integer>>> STORED_COLORS =

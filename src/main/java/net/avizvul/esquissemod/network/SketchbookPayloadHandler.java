@@ -205,4 +205,46 @@ public class SketchbookPayloadHandler {
         });
     }
 
+    public void handleChangeToolSettings(final ToolSettingsPayload payload, final net.neoforged.neoforge.network.handling.IPayloadContext context) {
+        context.enqueueWork(() -> {
+            net.minecraft.world.entity.player.Player player = context.player();
+
+            // Определяем, какой инструмент обновляем (0=PENCIL, 1=COLOR_PENCIL, 2=ERASER, 3=SMUDGE)
+            net.minecraft.world.item.Item targetItem = switch (payload.toolType()) {
+                case 0 -> ModItems.PENCIL.get();
+                case 1 -> ModItems.COLOR_PENCIL.get();
+                case 2 -> ModItems.ERASER.get();
+                case 3 -> ModItems.SMUDGE.get();
+                default -> null;
+            };
+            if (targetItem == null) return;
+
+            // Ищем инструмент (как мы делали с цветом)
+            for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+                net.minecraft.world.item.ItemStack stack = player.getInventory().getItem(i);
+                if (stack.is(targetItem)) {
+                    stack.set(ModDataComponents.BRUSH_SIZE.get(), payload.size());
+                    stack.set(ModDataComponents.BRUSH_HARDNESS.get(), payload.hardness());
+                    return;
+                }
+                // Проверка внутри пенала
+                if (stack.is(ModItems.PENCIL_CASE.get()) && stack.has(net.minecraft.core.component.DataComponents.CONTAINER)) {
+                    net.minecraft.world.item.component.ItemContainerContents contents = stack.get(net.minecraft.core.component.DataComponents.CONTAINER);
+                    if (contents != null) {
+                        net.minecraft.core.NonNullList<net.minecraft.world.item.ItemStack> items = net.minecraft.core.NonNullList.withSize(9, net.minecraft.world.item.ItemStack.EMPTY);
+                        contents.copyInto(items);
+                        for (int j = 0; j < items.size(); j++) {
+                            net.minecraft.world.item.ItemStack innerStack = items.get(j);
+                            if (innerStack.is(targetItem)) {
+                                innerStack.set(ModDataComponents.BRUSH_SIZE.get(), payload.size());
+                                innerStack.set(ModDataComponents.BRUSH_HARDNESS.get(), payload.hardness());
+                                stack.set(net.minecraft.core.component.DataComponents.CONTAINER, net.minecraft.world.item.component.ItemContainerContents.fromItems(items));
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 }

@@ -6,6 +6,7 @@ import net.avizvul.esquissemod.component.ModDataComponents;
 import net.avizvul.esquissemod.item.ModCreativeModeTabs;
 import net.avizvul.esquissemod.item.ModItems;
 import net.avizvul.esquissemod.menu.ModMenuTypes;
+import net.avizvul.esquissemod.network.ChangeColorPayload;
 import net.avizvul.esquissemod.network.TearPagePayload;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.neoforged.fml.event.lifecycle.ModLifecycleEvent;
@@ -91,9 +92,15 @@ public class EsquisseMod {
         );
 
         registrar.playToServer(
-                net.avizvul.esquissemod.network.ChangeColorPayload.TYPE,
-                net.avizvul.esquissemod.network.ChangeColorPayload.STREAM_CODEC,
+                ChangeColorPayload.TYPE,
+                ChangeColorPayload.STREAM_CODEC,
                 handler::handleChangeColor
+        );
+
+        registrar.playToServer(
+                net.avizvul.esquissemod.network.ToolSettingsPayload.TYPE,
+                net.avizvul.esquissemod.network.ToolSettingsPayload.STREAM_CODEC,
+                handler::handleToolSettings
         );
     }
 

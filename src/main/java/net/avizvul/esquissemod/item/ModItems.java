@@ -19,25 +19,16 @@ public class ModItems {
             () -> new SketchbookItem(new Item.Properties()
                     .stacksTo(1)
                     // --- НОВОЕ: Привязываем 16 пустых страниц к скетчбуку по умолчанию ---
-                    .component(ModDataComponents.SKETCHBOOK_PAGES.get(), createBlankPages(16))
-            ));
+                    .component(ModDataComponents.SKETCHBOOK_PAGES.get(), createBlankPages(16))));
 
     // Предмет изрисованной страницы (использует кастомный класс, который мы напишем ниже)
     public static final DeferredItem<Item> SKETCHED_PAGE = ITEMS.register("sketched_page",
             () -> new SketchedPageItem(new Item.Properties().stacksTo(1)));
 
-    public static final DeferredItem<Item> COLOR_PENCIL = ITEMS.register("color_pencil",
-            () -> new ColorPencilItem(new Item.Properties()
-                    .durability(256)
-                    // Инициализируем пустой список цветов и нулевой индекс при выдаче предмета
-                    .component(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>())
-                    .component(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0
-                    )
-            )
-    );
-
     public static final DeferredItem<Item> PENCIL = ITEMS.register("pencil",
-            () -> new DrawingToolItem(new Item.Properties().durability(256)) {
+            () -> new DrawingToolItem(new Item.Properties().durability(256)
+                    .component(ModDataComponents.BRUSH_SIZE.get(), 1)
+                    .component(ModDataComponents.BRUSH_HARDNESS.get(), 3)) {
                 @Override
                 public net.minecraft.resources.ResourceLocation getGuiTexture() {
                     return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_pencil.png");
@@ -52,7 +43,8 @@ public class ModItems {
             });
 
     public static final DeferredItem<Item> ERASER = ITEMS.register("eraser",
-            () -> new DrawingToolItem(new Item.Properties().durability(256)) {
+            () -> new DrawingToolItem(new Item.Properties().durability(256)
+                    .component(ModDataComponents.BRUSH_SIZE.get(), 1)) {
                 @Override
                 public net.minecraft.resources.ResourceLocation getGuiTexture() {
                     return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_eraser.png");
@@ -60,6 +52,25 @@ public class ModItems {
 
                 @Override
                 public int getPeekHeight() { return 6; } // А ластик пусть торчит поменьше
+            });
+
+    public static final DeferredItem<Item> COLOR_PENCIL = ITEMS.register("color_pencil",
+            () -> new ColorPencilItem(new Item.Properties()
+                    .durability(256)
+                    // Инициализируем пустой список цветов и нулевой индекс при выдаче предмета
+                    .component(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>())
+                    .component(ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0)));
+
+    public static final DeferredItem<Item> SMUDGE = ITEMS.register("smudge",
+            () -> new DrawingToolItem(new Item.Properties().durability(256)
+                    .component(ModDataComponents.BRUSH_SIZE.get(), 1)
+                    .component(ModDataComponents.BRUSH_HARDNESS.get(), 3)) {
+                @Override
+                public net.minecraft.resources.ResourceLocation getGuiTexture() {
+                    return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_blender.png");
+                }
+                @Override
+                public int getPeekHeight() { return 10; }
             });
 
     public static final DeferredItem<Item> EMPTY_PAGE = ITEMS.register("empty_page",
@@ -74,15 +85,7 @@ public class ModItems {
     public static final DeferredItem<Item> MAGNIFYING_GLASS = ITEMS.register("magnifying_glass",
             () -> new Item(new Item.Properties().stacksTo(1)));
 
-    public static final DeferredItem<Item> SMUDGE = ITEMS.register("smudge",
-            () -> new DrawingToolItem(new Item.Properties().durability(256)) {
-                @Override
-                public net.minecraft.resources.ResourceLocation getGuiTexture() {
-                    return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_blender.png");
-                }
-                @Override
-                public int getPeekHeight() { return 10; }
-            });
+
 
 
     public net.minecraft.resources.ResourceLocation getGuiTexture() {
