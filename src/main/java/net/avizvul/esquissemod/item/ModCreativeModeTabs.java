@@ -23,6 +23,7 @@ public class ModCreativeModeTabs {
                         output.accept(ModItems.PENCIL_CASE);
                         output.accept(ModItems.PENCIL);
                         output.accept(ModItems.ERASER);
+                        output.accept(ModItems.KNEADED_ERASER);
                         output.accept(ModItems.COLOR_PENCIL);
                         output.accept(ModItems.RULER);
                         output.accept(ModItems.MAGNIFYING_GLASS);

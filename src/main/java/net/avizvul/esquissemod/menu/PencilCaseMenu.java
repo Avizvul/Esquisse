@@ -49,9 +49,11 @@ public class PencilCaseMenu extends AbstractContainerMenu {
                         return stack.is(ModItems.PENCIL.get()) ||
                                 stack.is(ModItems.COLOR_PENCIL.get()) ||
                                 stack.is(ModItems.ERASER.get()) ||
+                                stack.is(ModItems.KNEADED_ERASER.get()) ||
                                 stack.is(ModItems.MAGNIFYING_GLASS.get()) ||
                                 stack.is(ModItems.RULER.get()) ||
                                 stack.is(ModItems.SMUDGE.get());
+
                     }
                 });
             }

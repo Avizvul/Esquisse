@@ -214,6 +214,7 @@ public class SketchbookPayloadHandler {
                 case 1 -> ModItems.COLOR_PENCIL.get();
                 case 2 -> ModItems.ERASER.get();
                 case 3 -> ModItems.SMUDGE.get();
+                case 4 -> ModItems.KNEADED_ERASER.get();
                 default -> null;
             };
             if (targetItem == null) return;

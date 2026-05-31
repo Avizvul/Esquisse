@@ -54,6 +54,18 @@ public class ModItems {
                 public int getPeekHeight() { return 6; } // А ластик пусть торчит поменьше
             });
 
+    public static final DeferredItem<Item> KNEADED_ERASER = ITEMS.register("kneaded_eraser",
+            () -> new DrawingToolItem(new Item.Properties().durability(256)
+                    .component(ModDataComponents.BRUSH_SIZE.get(), 1)
+                    .component(ModDataComponents.BRUSH_HARDNESS.get(), 3)) {
+                @Override
+                public net.minecraft.resources.ResourceLocation getGuiTexture() {
+                    return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_kneaded_eraser.png");
+                }
+                @Override
+                public int getPeekHeight() { return 6; }
+            });
+
     public static final DeferredItem<Item> COLOR_PENCIL = ITEMS.register("color_pencil",
             () -> new ColorPencilItem(new Item.Properties()
                     .durability(256)
@@ -86,15 +98,6 @@ public class ModItems {
 
     public static final DeferredItem<Item> MAGNIFYING_GLASS = ITEMS.register("magnifying_glass",
             () -> new Item(new Item.Properties().stacksTo(1)));
-
-
-
-
-    public net.minecraft.resources.ResourceLocation getGuiTexture() {
-        // Базовая текстура без цвета (цвет мы всё так же будем накладывать поверх неё в GUI)
-        return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(net.avizvul.esquissemod.EsquisseMod.MOD_ID, "textures/gui/button_color_pencil.png");
-    }
-
 
     public static void register(IEventBus eventBus){
         ITEMS.register(eventBus);

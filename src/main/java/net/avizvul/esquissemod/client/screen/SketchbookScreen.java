@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 import com.mojang.math.Axis;
@@ -35,8 +36,9 @@ public class SketchbookScreen extends Screen {
     private static final ResourceLocation MAGGLASS_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/magnifying_glass_gui.png");
     private static final ResourceLocation MAGGLASS_BTN_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_magnifying_glass.png");
     private static final ResourceLocation SMUDGE_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_smudge.png");
+    private static final ResourceLocation KNEADED_ERASER_TEX = ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "textures/gui/button_kneaded_eraser.png");
 
-    private enum Tool { PENCIL, COLOR_PENCIL, ERASER, SMUDGE }
+    private enum Tool { PENCIL, COLOR_PENCIL, ERASER, SMUDGE, KNEADED_ERASER  }
     private Tool activeTool = Tool.PENCIL;
 
     private final int fileWidth = 74;
@@ -226,7 +228,7 @@ public class SketchbookScreen extends Screen {
     }
 
     // Компактная структура для хранения координат кнопок инструментов
-    private record ToolButtonCoords(int scaledBtnWidth, int scaledBtnHeight, int pencilX, int colorPencilX, int eraserX, int smudgeX, int rulerX, int magGlassX, int peekY) {}
+    private record ToolButtonCoords(int scaledBtnWidth, int scaledBtnHeight, int pencilX, int colorPencilX, int eraserX, int kneadedX, int smudgeX, int rulerX, int magGlassX, int peekY) {}
 
     // Вспомогательный метод для расчета
     private ToolButtonCoords getToolButtonCoords() {
@@ -245,8 +247,8 @@ public class SketchbookScreen extends Screen {
 
         net.minecraft.world.item.ItemStack colorPencilStack = getColorPencilStack();
         boolean hasColorPencil = !colorPencilStack.isEmpty();
-
-        int pencilX = -1000, colorPencilX = -1000, eraserX = -1000, smudgeX = -1000, rulerX = -1000, magGlassX = -1000;
+        boolean hasKneaded = hasTool(ModItems.KNEADED_ERASER.get());
+        int pencilX = -1000, colorPencilX = -1000, eraserX = -1000, kneadedX = -1000, smudgeX = -1000, rulerX = -1000, magGlassX = -1000;
 
         // Размещаем линейку и лупу слева от хотбара
         int leftX = (this.width / 2) - 100 - scaledBtnWidth;
@@ -262,9 +264,10 @@ public class SketchbookScreen extends Screen {
         if (hasPencil) { pencilX = currentX; currentX += scaledBtnWidth + 5; }
         if (hasColorPencil) { colorPencilX = currentX; currentX += scaledBtnWidth + 5; }
         if (hasEraser) { eraserX = currentX; currentX += scaledBtnWidth + 5; }
+        if (hasKneaded) { kneadedX = currentX; currentX += scaledBtnWidth + 5; } // ДОБАВЛЕНО
         if (hasSmudge) { smudgeX = currentX; currentX += scaledBtnWidth + 5; } // ДОБАВЛЕНО
 
-        return new ToolButtonCoords(scaledBtnWidth, scaledBtnHeight, pencilX, colorPencilX, eraserX, smudgeX, rulerX, magGlassX, peekY);
+        return new ToolButtonCoords(scaledBtnWidth, scaledBtnHeight, pencilX, colorPencilX, eraserX, kneadedX, smudgeX, rulerX, magGlassX, peekY);
     }
 
     public void turnPage(int newPageIndex) {
@@ -366,6 +369,7 @@ public class SketchbookScreen extends Screen {
             case PENCIL -> findItemStack(ModItems.PENCIL.get());
             case COLOR_PENCIL -> getColorPencilStack();
             case ERASER -> findItemStack(ModItems.ERASER.get());
+            case KNEADED_ERASER -> findItemStack(ModItems.KNEADED_ERASER.get());
             case SMUDGE -> findItemStack(ModItems.SMUDGE.get());
         };
     }
@@ -425,27 +429,24 @@ public class SketchbookScreen extends Screen {
     public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {}
 
     private void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-
         this.lastMouseX = mouseX;
         this.lastMouseY = mouseY;
 
-        // Если активен векторный вызов (Shift+R), ставим линейку строго на вектор
         if (this.isQuickRulerMode) {
             this.rulerX = (this.quickRulerStartX + mouseX) / 2.0;
             this.rulerY = (this.quickRulerStartY + mouseY) / 2.0;
             this.rulerAngle = (float) Math.toDegrees(Math.atan2(mouseY - this.quickRulerStartY, mouseX - this.quickRulerStartX));
         }
 
-        // --- 1. БАЗОВЫЕ ПЕРЕМЕННЫЕ ---
         int renderX = (int) this.exactGuiLeft;
         int renderY = (int) this.exactGuiTop;
         int drawWidth = this.fileWidth * this.scale;
         int drawHeight = this.fileHeight * this.scale;
 
-        // ВНИМАНИЕ: Проверьте, что здесь указаны ваши правильные предметы из ModItems!
         boolean hasPencil = hasTool(ModItems.PENCIL.get());
         boolean hasEraser = hasTool(ModItems.ERASER.get());
         boolean hasSmudge = hasTool(ModItems.SMUDGE.get());
+        boolean hasKneaded = hasTool(ModItems.KNEADED_ERASER.get()); // ДОБАВЛЕНО
 
         ItemStack colorPencilStack = getColorPencilStack();
         boolean hasColorPencil = !colorPencilStack.isEmpty();
@@ -454,29 +455,24 @@ public class SketchbookScreen extends Screen {
         double cx = renderX + drawWidth / 2.0;
         double cy = renderY + drawHeight / 2.0;
 
-        // --- 2. НАЧАЛО БЛОКА ВРАЩЕНИЯ ---
         guiGraphics.pose().pushPose();
-
         guiGraphics.pose().translate(cx, cy, 0);
         if (this.rotationAngle != 0.0f) {
             guiGraphics.pose().mulPose(Axis.ZP.rotationDegrees(this.rotationAngle));
         }
         guiGraphics.pose().translate(-cx, -cy, 0);
 
-        // --- 3. ЗАКЛАДКИ ПОД БЛОКНОТОМ ---
         int scaledTabWidth = this.tabWidth * this.tabScale;
         int scaledTabHeight = this.tabHeight * this.tabScale;
 
-        // Вызываем наш метод и получаем готовые координаты
         TabCoords coords = getTabCoords(renderX, renderY, drawWidth);
         int tabX = coords.tabX();
         int backTabY = coords.backTabY();
         int forwardTabY = coords.forwardTabY();
 
-        // Получаем координаты с учетом вращения (индексы 0 и 1 обязательны)
         double[] logicalMouse = getLogicalMouse(mouseX, mouseY);
         double lMouseX = logicalMouse[0];
-        double lMouseY = logicalMouse[1];
+        double lMouseY = logicalMouse[2];
 
         if (this.currentPageIndex > 0) {
             boolean backHovered = !this.isDragging && !this.isRotating &&
@@ -494,54 +490,36 @@ public class SketchbookScreen extends Screen {
             guiGraphics.blit(PAGE_F_TEX, tabX, forwardTabY, scaledTabWidth, scaledTabHeight, 0.0f, forwardVOffset, this.tabWidth, this.tabHeight, this.tabWidth, this.tabHeight * 2);
         }
 
-        // --- 4. ФОН БЛОКНОТА (Накладывается поверх левой половины закладок) ---
         guiGraphics.blit(TEXTURE, renderX, renderY, drawWidth, drawHeight, 0.0f, 0.0f, this.fileWidth, this.fileHeight, this.fileWidth, this.fileHeight);
 
-        // --- ПОДСВЕТКА СИНЕЙ ЗОНЫ (ПЕРФОРАЦИИ) ---
         int blueZoneWidth = this.deadZoneWidth * this.scale;
         int blueZoneLeft = renderX + (this.frameWidth * this.scale);
         int blueZoneRight = blueZoneLeft + blueZoneWidth;
         int blueZoneTop = renderY;
         int blueZoneBottom = renderY + (this.canvasHeight * this.scale);
 
-        // Если курсор мыши находится в пределах синей зоны
         if (lMouseX >= blueZoneLeft && lMouseX <= blueZoneRight && lMouseY >= blueZoneTop && lMouseY <= blueZoneBottom) {
-
-            // Настройки нашего пунктира
-            int dashLength = 5; // Длина одного красного штриха в пикселях
-            int dashGap = 3;    // Расстояние между штрихами
-            int lineWidth = 2;  // Толщина линии
-
-            // Цвет ARGB (Альфа, Красный, Зеленый, Синий)
-            // 0xFF - полная непрозрачность, FF0000 - чистый красный цвет [1]
+            int dashLength = 5;
+            int dashGap = 3;
+            int lineWidth = 2;
             int color = 0xFFEE0000;
-
-            // Рисуем линию ровно по центру синей зоны
             int lineX = blueZoneLeft + (blueZoneWidth / 2) - (lineWidth / 2);
 
-            // Проходимся циклом сверху вниз по высоте блокнота
             for (int y = blueZoneTop; y < blueZoneBottom; y += dashLength + dashGap) {
-                // Вычисляем нижнюю координату текущего штриха
-                // Math.min нужен, чтобы последний штрих не вылез за границу блокнота
                 int currentDashBottom = Math.min(y + dashLength, blueZoneBottom);
-
-                // Рисуем один штрих с помощью метода fill (закрашенный прямоугольник) [2]
                 guiGraphics.fill(lineX, y, lineX + lineWidth, currentDashBottom, color);
             }
         }
 
-        // --- 5. КНОПКА ПОВОРОТА ---
         int btnFileWidth = 8;
         int btnFileHeight = 8;
         int btnX = renderX;
         int btnY = renderY + ((this.fileHeight - btnFileHeight) / 2) * this.scale;
         guiGraphics.blit(ROTATE_BTN_TEX, btnX, btnY, btnFileWidth * this.scale, btnFileHeight * this.scale, 0.0f, 0.0f, btnFileWidth, btnFileHeight, btnFileWidth, btnFileHeight);
 
-        // --- 6. ОТРИСОВКА ХОЛСТА И ПРЕДПРОСМОТРА ---
         int canvasScreenLeft = renderX + ((this.frameWidth + this.deadZoneWidth) * this.scale);
         int canvasScreenTop = renderY;
 
-        // --- НОВЫЙ РЕНДЕР ХОЛСТА ЧЕРЕЗ ТЕКСТУРУ ---
         if (this.isCanvasDirty) updateActiveCanvasTexture();
         if (this.activeCanvasId != null) {
             com.mojang.blaze3d.systems.RenderSystem.enableBlend();
@@ -551,14 +529,12 @@ public class SketchbookScreen extends Screen {
             com.mojang.blaze3d.systems.RenderSystem.disableBlend();
         }
 
-        // Предпросмотр кисти всё еще требует масштаба
         guiGraphics.pose().pushPose();
         float resScale = 1.0f / this.resolutionMultiplier;
         guiGraphics.pose().scale(resScale, resScale, 1.0f);
         int scaledCanvasLeft = canvasScreenLeft * this.resolutionMultiplier;
         int scaledCanvasTop = canvasScreenTop * this.resolutionMultiplier;
 
-        // --- 7. ПРЕДПРОСМОТР КИСТИ ---
         int scaledCanvasWidth = this.canvasWidth * this.scale;
         int scaledImageHeight = this.fileHeight * this.scale;
 
@@ -566,59 +542,51 @@ public class SketchbookScreen extends Screen {
                 lMouseX >= canvasScreenLeft && lMouseX < (canvasScreenLeft + scaledCanvasWidth) &&
                 lMouseY >= renderY && lMouseY < (renderY + scaledImageHeight)) {
 
+            // ДОБАВЛЕНО: Клячка в условии предпросмотра
             boolean canDraw = (this.activeTool == Tool.PENCIL && hasPencil) ||
                     (this.activeTool == Tool.COLOR_PENCIL && hasColors) ||
                     (this.activeTool == Tool.ERASER && hasEraser) ||
-                    (this.activeTool == Tool.SMUDGE && hasSmudge);
+                    (this.activeTool == Tool.SMUDGE && hasSmudge) ||
+                    (this.activeTool == Tool.KNEADED_ERASER && hasKneaded);
 
             if (canDraw) {
                 double physicalCellSize = (double) this.scale / this.resolutionMultiplier;
-
-                // ПРИМЕНЯЕМ МАГНИТ ДЛЯ ПРЕДПРОСМОТРА КИСТИ
                 double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
-                double magX = magnetMouse[ 0 ];
-                double magY = magnetMouse[ 1 ];
-                double[] lMouseMagnet = getLogicalMouse(magX, magY);
-                double logicalX = lMouseMagnet[ 0 ];
-                double logicalY = lMouseMagnet[ 1 ];
+                double[] lMouseMagnet = getLogicalMouse(magnetMouse[0], magnetMouse[2]);
 
-                int centerX = (int) ((logicalX - canvasScreenLeft) / physicalCellSize);
-                int centerY = (int) ((logicalY - renderY) / physicalCellSize);
+                int centerX = (int) ((lMouseMagnet[0] - canvasScreenLeft) / physicalCellSize);
+                int centerY = (int) ((lMouseMagnet[2] - renderY) / physicalCellSize);
 
                 int currentBrushSize = getBrushSize();
                 int actualSize = currentBrushSize;
-                if (this.activeTool == Tool.SMUDGE) {
+
+                // ДОБАВЛЕНО: Клячка тоже имеет размеры 2, 5, 12
+                if (this.activeTool == Tool.SMUDGE || this.activeTool == Tool.KNEADED_ERASER) {
                     actualSize = (currentBrushSize == 1) ? 2 : (currentBrushSize == 2) ? 5 : 12;
                 }
 
                 int offset = actualSize / 2;
-
-                // --- ОБЪЯВЛЯЕМ ПОТЕРЯННЫЕ ПЕРЕМЕННЫЕ ЗДЕСЬ ---
                 double radius = actualSize / 2.0;
                 double exactCX = centerX + (actualSize % 2 == 0 ? -0.5 : 0.0);
                 double exactCY = centerY + (actualSize % 2 == 0 ? -0.5 : 0.0);
 
-                int previewColor = (this.activeTool == Tool.ERASER) ? 0x60FF0000 : 0x60000000;
-                net.minecraft.world.item.ItemStack colorPencil = getColorPencilStack();
+                int previewColor = (this.activeTool == Tool.ERASER || this.activeTool == Tool.KNEADED_ERASER) ? 0x60FF0000 : 0x60000000;
 
-                if (this.activeTool == Tool.COLOR_PENCIL && !colorPencil.isEmpty()) {
-                    java.util.List<Integer> colors = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
-                    if (!colors.isEmpty()) {
-                        int activeIndex = colorPencil.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
-                        int colorId = colors.get(Math.abs(activeIndex) % colors.size());
-                        previewColor = net.minecraft.world.item.DyeColor.byId(colorId).getTextureDiffuseColor() | 0x60000000;
-                    }
+                if (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil && hasColors) {
+                    int activeIndex = colorPencilStack.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), 0);
+                    java.util.List<Integer> colors = colorPencilStack.getOrDefault(net.avizvul.esquissemod.component.ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+                    int colorId = colors.get(Math.abs(activeIndex) % colors.size());
+                    previewColor = net.minecraft.world.item.DyeColor.byId(colorId).getTextureDiffuseColor() | 0x60000000;
                 }
 
                 for (int x = centerX - offset; x < centerX - offset + actualSize; x++) {
                     for (int y = centerY - offset; y < centerY - offset + actualSize; y++) {
 
-                        // РАСЧЕТ РАССТОЯНИЯ ОТ ЦЕНТРА
                         double dx = x - exactCX;
                         double dy = y - exactCY;
 
-                        // Отсекаем углы (делаем круг) ТОЛЬКО для растушевки
-                        if (this.activeTool == Tool.SMUDGE && Math.sqrt(dx * dx + dy * dy) > radius) continue;
+                        // ДОБАВЛЕНО: Клячка тоже круглая
+                        if ((this.activeTool == Tool.SMUDGE || this.activeTool == Tool.KNEADED_ERASER) && Math.sqrt(dx * dx + dy * dy) > radius) continue;
 
                         if (x >= 0 && x < this.canvasWidth * this.resolutionMultiplier &&
                                 y >= 0 && y < this.canvasHeight * this.resolutionMultiplier) {
@@ -632,103 +600,91 @@ public class SketchbookScreen extends Screen {
             }
         }
 
-        guiGraphics.pose().popPose(); // Конец скейла для пикселей
+        guiGraphics.pose().popPose();
 
-        // --- 8. НУМЕРАЦИЯ СТРАНИЦ ---
         String pageText = String.valueOf(this.currentPageIndex + 1);
-
-        // Берем правый край бумаги (ширина * масштаб), отнимаем ширину текста и отнимаем 15 пикселей для красивого отступа от края
         int textX = renderX + (this.fileWidth * this.scale) - this.font.width(pageText) - 10;
-        int textY = renderY + (this.fileHeight * this.scale) - 15; // Высота (Y) остается прежней - внизу страницы
-
+        int textY = renderY + (this.fileHeight * this.scale) - 15;
         guiGraphics.drawString(this.font, pageText, textX, textY, 0xFF777777, false);
 
-        guiGraphics.pose().popPose(); // КОНЕЦ БЛОКА ВРАЩЕНИЯ
+        guiGraphics.pose().popPose();
 
         // --- 9. ИНСТРУМЕНТЫ И ИНДИКАТОРЫ ---
         ToolButtonCoords toolCoords = getToolButtonCoords();
         int scaledBtnWidth = toolCoords.scaledBtnWidth();
         int scaledBtnHeight = toolCoords.scaledBtnHeight();
-        int pencilX = toolCoords.pencilX();
-        int colorPencilX = toolCoords.colorPencilX();
-        int eraserX = toolCoords.eraserX();
-        int rulerX = toolCoords.rulerX();
         int peekY = toolCoords.peekY();
 
-        // Рендер кнопок
-        if (hasPencil) renderToolButton(guiGraphics, mouseX, mouseY, this.activeTool == Tool.PENCIL, PENCIL_TEX, pencilX);
-        if (hasColorPencil) renderColorToolButton(guiGraphics, mouseX, mouseY, colorPencilX, colorPencilStack);
-        if (hasEraser) renderToolButton(guiGraphics, mouseX, mouseY, this.activeTool == Tool.ERASER, ERASER_TEX, eraserX);
+        if (hasPencil) renderToolButton(guiGraphics, mouseX, mouseY, this.activeTool == Tool.PENCIL, PENCIL_TEX, toolCoords.pencilX());
+        if (hasColorPencil) renderColorToolButton(guiGraphics, mouseX, mouseY, toolCoords.colorPencilX(), colorPencilStack);
+        if (hasEraser) renderToolButton(guiGraphics, mouseX, mouseY, this.activeTool == Tool.ERASER, ERASER_TEX, toolCoords.eraserX());
+        if (hasKneaded) renderToolButton(guiGraphics, mouseX, mouseY, this.activeTool == Tool.KNEADED_ERASER, KNEADED_ERASER_TEX, toolCoords.kneadedX()); // ДОБАВЛЕНО
         if (hasSmudge) renderToolButton(guiGraphics, mouseX, mouseY, this.activeTool == Tool.SMUDGE, SMUDGE_TEX, toolCoords.smudgeX());
 
-        // Рендер кнопки линейки (Отрисовываем ТОЛЬКО если линейка спрятана)
         boolean hasRuler = hasTool(net.avizvul.esquissemod.item.ModItems.RULER.get());
         if (!hasRuler && this.isRulerActive) {
             this.isRulerActive = false;
             this.isQuickRulerMode = false;
         }
-
         if (hasRuler && !this.isRulerActive) {
-            renderToolButton(guiGraphics, mouseX, mouseY, false, RULER_BTN_TEX, rulerX);
+            renderToolButton(guiGraphics, mouseX, mouseY, false, RULER_BTN_TEX, toolCoords.rulerX());
         }
 
-        // --- ДОБАВЛЯЕМ КНОПКУ ЛУПЫ ---
         boolean hasMagGlass = hasTool(ModItems.MAGNIFYING_GLASS.get());
         if (hasMagGlass && !this.isMagnifierLocked) {
             renderToolButton(guiGraphics, mouseX, mouseY, false, MAGGLASS_BTN_TEX, toolCoords.magGlassX());
         }
 
-        // Индикаторы размера кисти, палитра и текст "Empty"
         if (this.activeTool == Tool.PENCIL && hasPencil) {
-            renderSizeIndicators(guiGraphics, mouseX, mouseY, pencilX, peekY);
+            renderSizeIndicators(guiGraphics, mouseX, mouseY, toolCoords.pencilX(), peekY);
         } else if (this.activeTool == Tool.COLOR_PENCIL && hasColorPencil) {
-            if (hasColors) {
-                renderSizeIndicators(guiGraphics, mouseX, mouseY, colorPencilX, peekY);
-            } else {
-                // Выводим красную надпись "Empty" вместо индикаторов размера
+            if (hasColors) renderSizeIndicators(guiGraphics, mouseX, mouseY, toolCoords.colorPencilX(), peekY);
+            else {
                 String emptyText = "Empty";
-                int emptyX = colorPencilX + (scaledBtnWidth / 2) - (this.font.width(emptyText) / 2);
+                int emptyX = toolCoords.colorPencilX() + (scaledBtnWidth / 2) - (this.font.width(emptyText) / 2);
                 guiGraphics.drawString(this.font, emptyText, emptyX, peekY - 24, 0xFFFF0000, false);
             }
-            // Вынесли палитру наружу, чтобы она показывалась ВСЕГДА!
             renderPalette(guiGraphics, colorPencilStack);
         } else if (this.activeTool == Tool.ERASER && hasEraser) {
-            renderSizeIndicators(guiGraphics, mouseX, mouseY, eraserX, peekY);
+            renderSizeIndicators(guiGraphics, mouseX, mouseY, toolCoords.eraserX(), peekY);
+        } else if (this.activeTool == Tool.KNEADED_ERASER && hasKneaded) { // ДОБАВЛЕНО
+            renderSizeIndicators(guiGraphics, mouseX, mouseY, toolCoords.kneadedX(), peekY);
         } else if (this.activeTool == Tool.SMUDGE && hasSmudge) {
             renderSizeIndicators(guiGraphics, mouseX, mouseY, toolCoords.smudgeX(), peekY);
         }
 
-        // Текст твердости теперь зависит от выбранного инструмента
-        if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors) || (this.activeTool == Tool.SMUDGE && hasSmudge)) {
+        // ДОБАВЛЕНО: Текст жесткости для клячки
+        if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors) ||
+                (this.activeTool == Tool.SMUDGE && hasSmudge) || (this.activeTool == Tool.KNEADED_ERASER && hasKneaded)) {
+
             int currentToolHardness = getHardness();
             String hardnessText;
-            if (this.activeTool == Tool.SMUDGE) {
+
+            if (this.activeTool == Tool.SMUDGE || this.activeTool == Tool.KNEADED_ERASER) {
                 hardnessText = (currentToolHardness == 1) ? "L" : (currentToolHardness == 2) ? "M" : "H";
             } else {
                 hardnessText = (currentToolHardness == 1) ? "2H" : (currentToolHardness == 2) ? "HB" : "4B";
             }
+
             int hardnessColor = (currentToolHardness == 1) ? 0xFFAAAAAA : (currentToolHardness == 2) ? 0xFF555555 : 0xFF222222;
-            int activeX = (this.activeTool == Tool.PENCIL) ? pencilX : (this.activeTool == Tool.SMUDGE) ? toolCoords.smudgeX() : colorPencilX;
+
+            int activeX = (this.activeTool == Tool.PENCIL) ? toolCoords.pencilX() :
+                    (this.activeTool == Tool.SMUDGE) ? toolCoords.smudgeX() :
+                    (this.activeTool == Tool.KNEADED_ERASER) ? toolCoords.kneadedX() : toolCoords.colorPencilX();
+
             int hX = activeX + (scaledBtnWidth / 2) - (this.font.width(hardnessText) / 2);
             guiGraphics.drawString(this.font, hardnessText, hX, peekY - 24, hardnessColor, false);
         }
 
-        // --- ОТРИСОВКА ЛИНЕЙКИ ---
         if (this.isRulerActive) {
             guiGraphics.pose().pushPose();
             guiGraphics.pose().translate(this.rulerX, this.rulerY, 0.5f);
             guiGraphics.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(this.rulerAngle));
-
             com.mojang.blaze3d.systems.RenderSystem.enableBlend();
-            // ИСПРАВЛЕНИЕ: Якорная точка (0,0) теперь находится по центру ВЕРХНЕЙ (рабочей) грани.
-            // Поэтому Y сдвиг = 0, и линейка рендерится ВНИЗ от якорной точки.
             guiGraphics.blit(RULER_TEX, -this.rulerWidth / 2, 0, 0.0f, 0.0f, this.rulerWidth, this.rulerHeight, this.rulerWidth, this.rulerHeight);
             com.mojang.blaze3d.systems.RenderSystem.disableBlend();
-
             guiGraphics.pose().popPose();
         }
-
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
     }
 
     @Override
@@ -1005,7 +961,7 @@ public class SketchbookScreen extends Screen {
         // --- УНИКАЛЬНЫЕ РАЗМЕРЫ ДЛЯ РАСТУШЕВКИ (2px, 5px, 12px) ---
         int currentBrushSize = getBrushSize();
         int actualSize = currentBrushSize;
-        if (this.activeTool == Tool.SMUDGE) {
+        if (this.activeTool == Tool.SMUDGE || this.activeTool == Tool.KNEADED_ERASER) {
             actualSize = (currentBrushSize == 1) ? 2 : (currentBrushSize == 2) ? 5 : 12;
         }
 
@@ -1039,11 +995,41 @@ public class SketchbookScreen extends Screen {
                         if (this.strokePixels == null) this.strokePixels = new boolean[this.canvasWidth * this.resolutionMultiplier][this.canvasHeight * this.resolutionMultiplier];
 
                         // ИСПРАВЛЕНИЕ: Растушевка теперь игнорирует блокировку штриха и может мазать по одному месту бесконечно!
-                        if (!this.strokePixels[x][y] || this.activeTool == Tool.SMUDGE) {
+                        if (!this.strokePixels[x][y] || this.activeTool == Tool.SMUDGE || this.activeTool == Tool.KNEADED_ERASER) {
 
+                            int currentToolHardness = getHardness();
+                            if (this.activeTool == Tool.KNEADED_ERASER) {
+                                int currentColor = pixels[x][y];
+                                if (currentColor != 0) {
+                                    // Сила стирания прозрачности за 1 кадр наведения
+                                    int eraseStep = (currentToolHardness == 1) ? 4 : (currentToolHardness == 2) ? 12 : 25;
+
+                                    float falloff = 1.0f;
+                                    float brushHardness = (currentToolHardness == 1) ? 0.4f : (currentToolHardness == 2) ? 0.7f : 0.9f;
+                                    double softRadius = radius * brushHardness;
+
+                                    if (distance > softRadius && radius > softRadius) {
+                                        falloff = (float) (1.0 - (distance - softRadius) / (radius - softRadius));
+                                    }
+
+                                    int actualErase = (int)(eraseStep * falloff);
+                                    if (actualErase > 0) {
+                                        int a = (currentColor >> 24) & 0xFF;
+                                        a -= actualErase;
+
+                                        if (a <= 5) {
+                                            pixels[x][y] = 0; // Стираем полностью
+                                        } else {
+                                            pixels[x][y] = (a << 24) | (currentColor & 0x00FFFFFF); // Оставляем цвет, уменьшаем альфу
+                                        }
+                                        this.isCanvasDirty = true;
+                                        this.eraserPixelsUsed++;
+                                        this.strokePixels[x][y] = true;
+                                    }
+                                }
+                            }
                             // --- ЛОГИКА РАСТУШЕВКИ (SMUDGE) ---
-                            if (this.activeTool == Tool.SMUDGE) {
-                                int currentToolHardness = getHardness();
+                            else if (this.activeTool == Tool.SMUDGE) {
                                 float shiftRate = (currentToolHardness == 1) ? 0.4f : (currentToolHardness == 2) ? 0.7f : 0.95f;
                                 float mixRate = (currentToolHardness == 1) ? 0.65f : (currentToolHardness == 2) ? 0.35f : 0.15f;
                                 float falloff = 1.0f;
@@ -1110,7 +1096,8 @@ public class SketchbookScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         boolean hasPencil = hasTool(ModItems.PENCIL.get());
         boolean hasEraser = hasTool(ModItems.ERASER.get());
-        boolean hasSmudge = hasTool(ModItems.SMUDGE.get()); // ИСПРАВЛЕНИЕ 1: Теперь доступно везде!
+        boolean hasSmudge = hasTool(ModItems.SMUDGE.get());
+        boolean hasKneaded = hasTool(ModItems.KNEADED_ERASER.get()); // ДОБАВЛЕНО
 
         ItemStack colorPencilStack = getColorPencilStack();
         boolean hasColorPencil = !colorPencilStack.isEmpty();
@@ -1121,21 +1108,21 @@ public class SketchbookScreen extends Screen {
         ToolButtonCoords toolCoords = getToolButtonCoords();
         int scaledBtnWidth = toolCoords.scaledBtnWidth();
         int scaledBtnHeight = toolCoords.scaledBtnHeight();
+
         int pencilX = toolCoords.pencilX();
         int colorPencilX = toolCoords.colorPencilX();
         int eraserX = toolCoords.eraserX();
         int smudgeX = toolCoords.smudgeX();
+        int kneadedX = toolCoords.kneadedX(); // ДОБАВЛЕНО
         int rulerX = toolCoords.rulerX();
         int magGlassX = toolCoords.magGlassX();
         int peekY = toolCoords.peekY();
 
-        // --- ОТМЕНА ЛУПЫ НА ПКМ (Высший приоритет) ---
         if (button == 1 && this.isMagnifierLocked) {
             this.isMagnifierLocked = false;
             return true;
         }
 
-        // --- ЛОГИКА ЛИНЕЙКИ (Нажатие на саму линейку) ---
         if (this.isRulerActive && !this.isQuickRulerMode) {
             double dx = mouseX - this.rulerX;
             double dy = mouseY - this.rulerY;
@@ -1144,7 +1131,7 @@ public class SketchbookScreen extends Screen {
             double localY = dx * Math.sin(rad) + dy * Math.cos(rad);
 
             if (Math.abs(localX) <= this.rulerWidth / 2.0 && localY >= 0 && localY <= this.rulerHeight) {
-                if (button == 0) { // ЛКМ - перемещение или вращение
+                if (button == 0) {
                     if (net.minecraft.client.gui.screens.Screen.hasShiftDown()) {
                         this.isRulerRotating = true;
                         double startAngle = Math.toDegrees(Math.atan2(mouseY - this.rulerY, mouseX - this.rulerX));
@@ -1153,48 +1140,44 @@ public class SketchbookScreen extends Screen {
                         this.isRulerDragging = true;
                     }
                     return true;
-                } else if (button == 1) { // ПКМ - быстрое скрытие
+                } else if (button == 1) {
                     this.isRulerActive = false;
                     return true;
                 }
             }
         }
 
-        // --- ЛЕВЫЙ КЛИК (ЛКМ) ПО ИНТЕРФЕЙСУ ---
         if (button == 0) {
             int baseY = this.height - (scaledBtnHeight / 2);
             int pencilY = (this.activeTool == Tool.PENCIL) ? peekY : baseY;
             int colorPencilY = (this.activeTool == Tool.COLOR_PENCIL) ? peekY : baseY;
             int eraserY = (this.activeTool == Tool.ERASER) ? peekY : baseY;
             int smudgeY = (this.activeTool == Tool.SMUDGE) ? peekY : baseY;
+            int kneadedY = (this.activeTool == Tool.KNEADED_ERASER) ? peekY : baseY; // ДОБАВЛЕНО
 
             // 1. Выбор инструментов
             if (hasPencil && mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth && mouseY >= pencilY && mouseY < pencilY + scaledBtnHeight) {
-                this.activeTool = Tool.PENCIL;
-                return true;
+                this.activeTool = Tool.PENCIL; return true;
             }
             if (hasColorPencil && mouseX >= colorPencilX && mouseX < colorPencilX + scaledBtnWidth && mouseY >= colorPencilY && mouseY < colorPencilY + scaledBtnHeight) {
-                this.activeTool = Tool.COLOR_PENCIL;
-                return true;
+                this.activeTool = Tool.COLOR_PENCIL; return true;
             }
             if (hasEraser && mouseX >= eraserX && mouseX < eraserX + scaledBtnWidth && mouseY >= eraserY && mouseY < eraserY + scaledBtnHeight) {
-                this.activeTool = Tool.ERASER;
-                return true;
+                this.activeTool = Tool.ERASER; return true;
             }
-            // ИСПРАВЛЕНИЕ 2: Вернули проверку выбора Растушевки!
             if (hasSmudge && mouseX >= smudgeX && mouseX < smudgeX + scaledBtnWidth && mouseY >= smudgeY && mouseY < smudgeY + scaledBtnHeight) {
-                this.activeTool = Tool.SMUDGE;
-                return true;
+                this.activeTool = Tool.SMUDGE; return true;
+            }
+            // ДОБАВЛЕНО: Выбор клячки
+            if (hasKneaded && mouseX >= kneadedX && mouseX < kneadedX + scaledBtnWidth && mouseY >= kneadedY && mouseY < kneadedY + scaledBtnHeight) {
+                this.activeTool = Tool.KNEADED_ERASER; return true;
             }
 
-            // Вызов Лупы и Линейки
             if (hasRuler && !this.isRulerActive && mouseX >= rulerX && mouseX < rulerX + scaledBtnWidth && mouseY >= baseY && mouseY < baseY + scaledBtnHeight) {
-                this.isRulerActive = true;
-                return true;
+                this.isRulerActive = true; return true;
             }
             if (hasMagGlass && !this.isMagnifierLocked && mouseX >= magGlassX && mouseX < magGlassX + scaledBtnWidth && mouseY >= baseY && mouseY < baseY + scaledBtnHeight) {
-                this.isMagnifierLocked = true;
-                return true;
+                this.isMagnifierLocked = true; return true;
             }
 
             // 2. Индикаторы размера кисти и палитра
@@ -1218,27 +1201,25 @@ public class SketchbookScreen extends Screen {
             } else if (this.activeTool == Tool.ERASER && hasEraser) {
                 if (handleSizeIndicatorClick(mouseX, mouseY, eraserX, peekY)) return true;
             } else if (this.activeTool == Tool.SMUDGE && hasSmudge) {
-                if (handleSizeIndicatorClick(mouseX, mouseY, smudgeX, peekY)) return true; // ИСПРАВЛЕНИЕ 3: Выбор размера для растушевки
+                if (handleSizeIndicatorClick(mouseX, mouseY, smudgeX, peekY)) return true;
+            } else if (this.activeTool == Tool.KNEADED_ERASER && hasKneaded) { // ДОБАВЛЕНО
+                if (handleSizeIndicatorClick(mouseX, mouseY, kneadedX, peekY)) return true;
             }
 
-            // 3. Вычисление логических координат
             double[] logicalMouse = getLogicalMouse(mouseX, mouseY);
             double lMouseX = logicalMouse[0];
-            double lMouseY = logicalMouse[1];
+            double lMouseY = logicalMouse[2];
             int renderX = (int) this.exactGuiLeft;
             int renderY = (int) this.exactGuiTop;
 
-            // 4. Кнопка поворота
             int btnFileWidth = 8;
             int btnFileHeight = 8;
             int btnX = renderX;
             int btnY = renderY + ((this.fileHeight - btnFileHeight) / 2) * this.scale;
             if (lMouseX >= btnX && lMouseX < btnX + (btnFileWidth * this.scale) && lMouseY >= btnY && lMouseY < btnY + (btnFileHeight * this.scale)) {
-                this.isRotating = true;
-                return true;
+                this.isRotating = true; return true;
             }
 
-            // 5. Перелистывание страниц
             int drawWidth = this.fileWidth * this.scale;
             TabCoords coords = getTabCoords(renderX, renderY, drawWidth);
             net.minecraft.world.item.ItemStack stack = this.minecraft.player.getMainHandItem();
@@ -1248,54 +1229,48 @@ public class SketchbookScreen extends Screen {
             int scaledTabWidth = this.tabWidth * this.tabScale;
             int scaledTabHeight = this.tabHeight * this.tabScale;
             if (this.currentPageIndex > 0 && lMouseX >= coords.tabX() && lMouseX < coords.tabX() + scaledTabWidth && lMouseY >= coords.backTabY() && lMouseY < coords.backTabY() + scaledTabHeight) {
-                turnPage(this.currentPageIndex - 1);
-                return true;
+                turnPage(this.currentPageIndex - 1); return true;
             }
             if (this.currentPageIndex < pages.size() - 1 && lMouseX >= coords.tabX() && lMouseX < coords.tabX() + scaledTabWidth && lMouseY >= coords.forwardTabY() && lMouseY < coords.forwardTabY() + scaledTabHeight) {
-                turnPage(this.currentPageIndex + 1);
-                return true;
+                turnPage(this.currentPageIndex + 1); return true;
             }
 
-            // 6. Рисование и перетаскивание холста
             int scaledFrameWidth = this.frameWidth * this.scale;
             int scaledImageHeight = this.fileHeight * this.scale;
 
             if (lMouseX >= renderX && lMouseX < (renderX + scaledFrameWidth) && lMouseY >= renderY && lMouseY < (renderY + scaledImageHeight)) {
-                this.isDragging = true;
-                return true;
+                this.isDragging = true; return true;
             } else {
                 int canvasScreenLeft = renderX + ((this.frameWidth + this.deadZoneWidth) * this.scale);
                 int scaledCanvasWidth = this.canvasWidth * this.scale;
 
                 if (lMouseX >= canvasScreenLeft && lMouseX < (canvasScreenLeft + scaledCanvasWidth) && lMouseY >= renderY && lMouseY < (renderY + scaledImageHeight)) {
                     double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
-                    double[] drawLogical = getLogicalMouse(magnetMouse[0], magnetMouse[1]);
+                    double[] drawLogical = getLogicalMouse(magnetMouse[0], magnetMouse[2]);
 
                     if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors) || (this.activeTool == Tool.SMUDGE && hasSmudge)) {
                         this.isDrawing = true;
                         this.lastLogicalX = drawLogical[0];
-                        this.lastLogicalY = drawLogical[1];
-                        drawPixel(drawLogical[0], drawLogical[1]);
-                    } else if (this.activeTool == Tool.ERASER && hasEraser) {
-                        this.isErasing = true;
+                        this.lastLogicalY = drawLogical[2];
+                        drawPixel(drawLogical[0], drawLogical[2]);
+                    } else if ((this.activeTool == Tool.ERASER && hasEraser) || (this.activeTool == Tool.KNEADED_ERASER && hasKneaded)) { // ДОБАВЛЕНО
+                        this.isErasing = true; // Стирание и клячка используют один и тот же флаг рисования
                         this.lastLogicalX = drawLogical[0];
-                        this.lastLogicalY = drawLogical[1];
-                        drawPixel(drawLogical[0], drawLogical[1]);
+                        this.lastLogicalY = drawLogical[2];
+                        drawPixel(drawLogical[0], drawLogical[2]);
                     }
                     return true;
                 }
             }
         }
 
-        // --- ПРАВЫЙ КЛИК (ПКМ) ---
         if (button == 1) {
             double[] logicalMouse = getLogicalMouse(mouseX, mouseY);
             double lMouseX = logicalMouse[0];
-            double lMouseY = logicalMouse[1];
+            double lMouseY = logicalMouse[2];
             int renderX = (int) this.exactGuiLeft;
             int renderY = (int) this.exactGuiTop;
 
-            // 1. Сброс поворота холста
             int btnFileWidth = 8;
             int btnFileHeight = 8;
             int btnX = renderX;
@@ -1306,7 +1281,6 @@ public class SketchbookScreen extends Screen {
                 return true;
             }
 
-            // 2. Отрыв страницы
             int blueZoneWidth = this.deadZoneWidth * this.scale;
             int blueZoneLeft = renderX + (this.frameWidth * this.scale);
             int blueZoneTop = renderY;
@@ -1338,12 +1312,13 @@ public class SketchbookScreen extends Screen {
             boolean clickedPencil = hasPencil && mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
             boolean clickedColorPencil = hasColors && mouseX >= colorPencilX && mouseX < colorPencilX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
             boolean clickedSmudge = hasSmudge && mouseX >= smudgeX && mouseX < smudgeX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
+            boolean clickedKneaded = hasKneaded && mouseX >= kneadedX && mouseX < kneadedX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight; // ДОБАВЛЕНО
 
-            if (clickedPencil || clickedColorPencil || clickedSmudge) {
-                // Если игрок кликнул ПКМ по инструменту, сначала активируем его
+            if (clickedPencil || clickedColorPencil || clickedSmudge || clickedKneaded) {
                 if (clickedPencil) this.activeTool = Tool.PENCIL;
                 else if (clickedColorPencil) this.activeTool = Tool.COLOR_PENCIL;
                 else if (clickedSmudge) this.activeTool = Tool.SMUDGE;
+                else if (clickedKneaded) this.activeTool = Tool.KNEADED_ERASER; // ДОБАВЛЕНО
 
                 int h = getHardness() + 1;
                 if (h > 3) h = 1;
@@ -1351,7 +1326,6 @@ public class SketchbookScreen extends Screen {
                 return true;
             }
 
-            // 4. Скрытие линейки
             boolean clickedRuler = hasRuler && mouseX >= rulerX && mouseX < rulerX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
             if (clickedRuler && this.isRulerActive) {
                 this.isRulerActive = false;
@@ -1361,6 +1335,7 @@ public class SketchbookScreen extends Screen {
 
         return super.mouseClicked(mouseX, mouseY, button);
     }
+
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
