@@ -67,6 +67,31 @@ public class ModDataComponents {
                             .build()
             );
 
+    // --- КОМПОНЕНТЫ ЦИРКУЛЯ ---
+    public static final Supplier<DataComponentType<Integer>> COMPASS_ANCHOR_X =
+            DATA_COMPONENT_TYPES.register("compass_anchor_x", () ->
+                    DataComponentType.<Integer>builder()
+                            .persistent(com.mojang.serialization.Codec.INT)
+                            .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.INT)
+                            .build()
+            );
+
+    public static final Supplier<DataComponentType<Integer>> COMPASS_ANCHOR_Y =
+            DATA_COMPONENT_TYPES.register("compass_anchor_y", () ->
+                    DataComponentType.<Integer>builder()
+                            .persistent(com.mojang.serialization.Codec.INT)
+                            .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.INT)
+                            .build()
+            );
+
+    public static final Supplier<DataComponentType<Boolean>> COMPASS_IS_DRAWING =
+            DATA_COMPONENT_TYPES.register("compass_is_drawing", () ->
+                    DataComponentType.<Boolean>builder()
+                            .persistent(com.mojang.serialization.Codec.BOOL)
+                            .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.BOOL)
+                            .build()
+            );
+
     // --- КОМПОНЕНТ ДЛЯ ЗАПОМИНАНИЯ ПОСЛЕДНЕЙ СТРАНИЦЫ ---
     public static final Supplier<DataComponentType<Integer>> LAST_PAGE =
             DATA_COMPONENT_TYPES.register("last_page", () ->

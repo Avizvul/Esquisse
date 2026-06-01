@@ -28,6 +28,7 @@ public class ModCreativeModeTabs {
                         output.accept(ModItems.RULER);
                         output.accept(ModItems.MAGNIFYING_GLASS);
                         output.accept(ModItems.SMUDGE);
+                        output.accept(ModItems.DRAWING_COMPASS);
 
                         // --- НОВОЕ: Полностью заполненный цветной карандаш ---
                         ItemStack fullColorPencil = new ItemStack(ModItems.COLOR_PENCIL.get());

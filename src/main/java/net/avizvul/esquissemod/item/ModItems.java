@@ -2,10 +2,7 @@ package net.avizvul.esquissemod.item;
 
 import net.avizvul.esquissemod.EsquisseMod;
 import net.avizvul.esquissemod.component.ModDataComponents; // Убедитесь, что импорт правильный для вашего компонента
-import net.avizvul.esquissemod.item.custom.ColorPencilItem;
-import net.avizvul.esquissemod.item.custom.PencilCaseItem;
-import net.avizvul.esquissemod.item.custom.SketchbookItem;
-import net.avizvul.esquissemod.item.custom.SketchedPageItem;
+import net.avizvul.esquissemod.item.custom.*;
 import net.avizvul.esquissemod.item.custom.base.DrawingToolItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
@@ -92,6 +89,14 @@ public class ModItems {
 
     public static final DeferredItem<Item> RULER = ITEMS.register("ruler",
             () -> new Item(new Item.Properties().stacksTo(1)));
+
+    public static final DeferredItem<Item> DRAWING_COMPASS = ITEMS.register("drawing_compass",
+            () -> new DrawingCompassItem(new Item.Properties()
+                    .durability(256)
+                    // По умолчанию игла не стоит (x=-1), и он не рисует
+                    .component(ModDataComponents.COMPASS_ANCHOR_X.get(), -1)
+                    .component(ModDataComponents.COMPASS_ANCHOR_Y.get(), -1)
+                    .component(ModDataComponents.COMPASS_IS_DRAWING.get(), false)));
 
     public static final DeferredItem<Item> PENCIL_CASE = ITEMS.register("pencil_case",
             () -> new PencilCaseItem(new Item.Properties().stacksTo(1)));
