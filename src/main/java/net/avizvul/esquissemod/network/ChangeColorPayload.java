@@ -6,11 +6,13 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
-public record ChangeColorPayload(int colorIndex) implements CustomPacketPayload {
+public record ChangeColorPayload(int colorIndex, boolean isMarker) implements CustomPacketPayload {
+
     public static final Type<ChangeColorPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(EsquisseMod.MOD_ID, "change_color"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ChangeColorPayload> STREAM_CODEC = StreamCodec.composite(
             net.minecraft.network.codec.ByteBufCodecs.INT, ChangeColorPayload::colorIndex,
+            net.minecraft.network.codec.ByteBufCodecs.BOOL, ChangeColorPayload::isMarker,
             ChangeColorPayload::new
     );
 

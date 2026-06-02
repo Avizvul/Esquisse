@@ -173,12 +173,15 @@ public class SketchbookPayloadHandler {
         context.enqueueWork(() -> {
             net.minecraft.world.entity.player.Player player = context.player();
 
-            // Ищем цветной карандаш везде: в руках, в инвентаре и внутри пенала
+            // Определяем, маркер это или карандаш
+            net.minecraft.world.item.Item targetItem = payload.isMarker() ? net.avizvul.esquissemod.item.ModItems.COLOR_MARKER.get() : net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get();
+
+            // Ищем инструмент везде: в руках, в инвентаре и внутри пенала
             for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
                 net.minecraft.world.item.ItemStack stack = player.getInventory().getItem(i);
 
                 // Если нашли просто в инвентаре:
-                if (stack.is(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get())) {
+                if (stack.is(targetItem)) {
                     stack.set(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), payload.colorIndex());
                     return;
                 }
@@ -191,7 +194,7 @@ public class SketchbookPayloadHandler {
                         contents.copyInto(items);
                         for (int j = 0; j < items.size(); j++) {
                             net.minecraft.world.item.ItemStack innerStack = items.get(j);
-                            if (innerStack.is(net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get())) {
+                            if (innerStack.is(targetItem)) {
                                 innerStack.set(net.avizvul.esquissemod.component.ModDataComponents.ACTIVE_COLOR_INDEX.get(), payload.colorIndex());
                                 // Упаковываем обновленный инвентарь обратно в пенал!
                                 stack.set(net.minecraft.core.component.DataComponents.CONTAINER, net.minecraft.world.item.component.ItemContainerContents.fromItems(items));

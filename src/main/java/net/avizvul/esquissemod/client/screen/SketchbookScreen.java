@@ -617,7 +617,7 @@ public class SketchbookScreen extends Screen {
 
                 // Предпросмотр маркера (геометрия 2x4, 3x6, 4x8)
                 double thickness = currentBrushSize + 1.0;
-                double length = thickness * 2.0;
+                double length = currentBrushSize * 5.0;
 
                 int bound = isMarker ? (int) Math.ceil(length / 2.0) + 1 : offset;
 
@@ -1072,13 +1072,14 @@ public class SketchbookScreen extends Screen {
         }
 
         int markerRot = isMarker ? getMarkerRotation() : 0;
-        double angleRad = Math.toRadians(markerRot * 45.0); // 0, 45, 90, 135 градусов
+        double angleRad = Math.toRadians(markerRot * 45.0);
         double mCos = Math.cos(angleRad);
         double mSin = Math.sin(angleRad);
 
-        // Размеры 2x4, 3x6 и 4x8
+        // === ИЗМЕРЕНИЯ КИСТИ МАРКЕРА УКАЗЫВАЮТСЯ ЗДЕСЬ ===
+        // Размеры 2x5, 3x10 и 4x15
         double thickness = currentBrushSize + 1.0;
-        double length = thickness * 2.0;
+        double length = currentBrushSize * 5.0;
 
         int bound = isMarker ? (int) Math.ceil(length / 2.0) + 1 : offset;
 
@@ -1135,11 +1136,8 @@ public class SketchbookScreen extends Screen {
                                 if (actualErase > 0) {
                                     int a = (currentColor >> 24) & 0xFF;
                                     a -= actualErase;
-                                    if (a <= 5) {
-                                        pixels[x][y] = 0; // Стираем полностью
-                                    } else {
-                                        pixels[x][y] = (a << 24) | (currentColor & 0x00FFFFFF);
-                                    }
+                                    if (a <= 5) pixels[x][y] = 0;
+                                    else pixels[x][y] = (a << 24) | (currentColor & 0x00FFFFFF);
                                     this.isCanvasDirty = true;
                                     this.eraserPixelsUsed++;
                                     this.strokePixels[x][y] = true;
@@ -1154,9 +1152,7 @@ public class SketchbookScreen extends Screen {
                             float brushHardness = (currentToolHardness == 1) ? 0.6f : (currentToolHardness == 2) ? 0.85f : 1.0f;
                             double softRadius = radius * brushHardness;
 
-                            if (distance > softRadius && radius > softRadius) {
-                                falloff = (float) (1.0 - (distance - softRadius) / (radius - softRadius));
-                            }
+                            if (distance > softRadius && radius > softRadius) falloff = (float) (1.0 - (distance - softRadius) / (radius - softRadius));
 
                             float finalShiftRate = shiftRate * falloff;
                             float sourceInfluence = (1.0f - mixRate) * falloff;
@@ -1191,8 +1187,8 @@ public class SketchbookScreen extends Screen {
                                 }
                             }
 
-                            // Для маркера альфа-канал всегда 255 (максимально плотный цвет)
-                            int alpha = (this.activeTool == Tool.COLOR_MARKER) ? 255 : ((currentToolHardness == 1) ? 64 : (currentToolHardness == 2) ? 128 : 255);
+                            // Полупрозрачность маркера выставлена на 100 из 255 (около 40%)
+                            int alpha = (this.activeTool == Tool.COLOR_MARKER) ? 100 : ((currentToolHardness == 1) ? 64 : (currentToolHardness == 2) ? 128 : 255);
                             int newColorArgb = (alpha << 24) | (brushRgb & 0xFFFFFF);
                             int blendedColor = net.avizvul.esquissemod.util.ColorUtils.blendColors(pixels[x][y], newColorArgb);
 
@@ -1333,7 +1329,10 @@ public class SketchbookScreen extends Screen {
                         int foundIndex = colors.indexOf(swatch.colorId());
                         if (foundIndex != -1) {
                             activeStack.set(ModDataComponents.ACTIVE_COLOR_INDEX.get(), foundIndex);
-                            net.neoforged.neoforge.network.PacketDistributor.sendToServer(new net.avizvul.esquissemod.network.ChangeColorPayload(foundIndex));
+                            // Узнаем, является ли текущий инструмент маркером
+                            boolean isMarker = (this.activeTool == Tool.COLOR_MARKER);
+                            // Передаем этот флаг вторым аргументом в пакет
+                            net.neoforged.neoforge.network.PacketDistributor.sendToServer(new net.avizvul.esquissemod.network.ChangeColorPayload(foundIndex, isMarker));
                             return true;
                         }
                     }
