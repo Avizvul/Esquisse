@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "esquissemod:item/color_marker_base",
+    "layer1": "esquissemod:item/color_marker_tint"
+  }
+}

@@ -208,26 +208,35 @@ public class SketchbookPayloadHandler {
         context.enqueueWork(() -> {
             net.minecraft.world.entity.player.Player player = context.player();
 
-            // Определяем, какой инструмент обновляем (0=PENCIL, 1=COLOR_PENCIL, 2=ERASER, 3=SMUDGE)
+            // Определяем, какой инструмент обновляем
             net.minecraft.world.item.Item targetItem = switch (payload.toolType()) {
                 case 0 -> ModItems.PENCIL.get();
                 case 1 -> ModItems.COLOR_PENCIL.get();
                 case 2 -> ModItems.ERASER.get();
                 case 3 -> ModItems.SMUDGE.get();
                 case 4 -> ModItems.KNEADED_ERASER.get();
+                case 5 -> ModItems.COLOR_MARKER.get(); // МАРКЕР
                 default -> null;
             };
+
             if (targetItem == null) return;
 
             // Ищем инструмент (как мы делали с цветом)
             for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
                 net.minecraft.world.item.ItemStack stack = player.getInventory().getItem(i);
+
+                // 1. Нашли напрямую в инвентаре (переменная называется stack)
                 if (stack.is(targetItem)) {
                     stack.set(ModDataComponents.BRUSH_SIZE.get(), payload.size());
                     stack.set(ModDataComponents.BRUSH_HARDNESS.get(), payload.hardness());
+                    // Сохраняем угол поворота, если это маркер
+                    if (targetItem == ModItems.COLOR_MARKER.get()) {
+                        stack.set(ModDataComponents.MARKER_ROTATION.get(), payload.rotation());
+                    }
                     return;
                 }
-                // Проверка внутри пенала
+
+                // 2. Проверка внутри пенала (а вот тут переменная называется innerStack)
                 if (stack.is(ModItems.PENCIL_CASE.get()) && stack.has(net.minecraft.core.component.DataComponents.CONTAINER)) {
                     net.minecraft.world.item.component.ItemContainerContents contents = stack.get(net.minecraft.core.component.DataComponents.CONTAINER);
                     if (contents != null) {
@@ -235,9 +244,15 @@ public class SketchbookPayloadHandler {
                         contents.copyInto(items);
                         for (int j = 0; j < items.size(); j++) {
                             net.minecraft.world.item.ItemStack innerStack = items.get(j);
+
                             if (innerStack.is(targetItem)) {
                                 innerStack.set(ModDataComponents.BRUSH_SIZE.get(), payload.size());
                                 innerStack.set(ModDataComponents.BRUSH_HARDNESS.get(), payload.hardness());
+                                // Сохраняем угол поворота, если это маркер
+                                if (targetItem == ModItems.COLOR_MARKER.get()) {
+                                    innerStack.set(ModDataComponents.MARKER_ROTATION.get(), payload.rotation());
+                                }
+                                // Перепаковываем обновленный список в пенал
                                 stack.set(net.minecraft.core.component.DataComponents.CONTAINER, net.minecraft.world.item.component.ItemContainerContents.fromItems(items));
                                 return;
                             }

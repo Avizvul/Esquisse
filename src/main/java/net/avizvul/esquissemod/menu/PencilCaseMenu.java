@@ -48,6 +48,7 @@ public class PencilCaseMenu extends AbstractContainerMenu {
                     public boolean mayPlace(ItemStack stack) {
                         return stack.is(ModItems.PENCIL.get()) ||
                                 stack.is(ModItems.COLOR_PENCIL.get()) ||
+                                stack.is(ModItems.COLOR_MARKER.get()) ||
                                 stack.is(ModItems.ERASER.get()) ||
                                 stack.is(ModItems.KNEADED_ERASER.get()) ||
                                 stack.is(ModItems.MAGNIFYING_GLASS.get()) ||

@@ -67,6 +67,14 @@ public class ModDataComponents {
                             .build()
             );
 
+    public static final Supplier<DataComponentType<Integer>> MARKER_ROTATION =
+            DATA_COMPONENT_TYPES.register("marker_rotation", () ->
+                    DataComponentType.<Integer>builder()
+                            .persistent(com.mojang.serialization.Codec.INT)
+                            .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.INT)
+                            .build()
+            );
+
     // --- КОМПОНЕНТЫ ЦИРКУЛЯ ---
     public static final Supplier<DataComponentType<Integer>> COMPASS_ANCHOR_X =
             DATA_COMPONENT_TYPES.register("compass_anchor_x", () ->

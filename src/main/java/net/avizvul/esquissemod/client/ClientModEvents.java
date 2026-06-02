@@ -45,7 +45,8 @@ public class ClientModEvents {
 
             // Для деревянного корпуса (layer0) возвращаем -1, чтобы игра его не фильтровала
             return -1;
-        }, net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get());
+        }, net.avizvul.esquissemod.item.ModItems.COLOR_PENCIL.get(), net.avizvul.esquissemod.item.ModItems.COLOR_MARKER.get());
+
     }
 
     @SubscribeEvent
