@@ -3,14 +3,11 @@
   "category": "tool",
   "ingredients": [
     {
-      "item": "minecraft:clay_ball"
-    },
-    {
-      "item": "esquissemod:eraser"
+      "item": "minecraft:paper"
     }
   ],
   "result": {
     "count": 1,
-    "id": "esquissemod:kneaded_eraser"
+    "id": "esquissemod:smudge"
   }
 }
