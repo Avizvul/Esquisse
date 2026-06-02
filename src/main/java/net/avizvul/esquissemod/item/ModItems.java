@@ -119,15 +119,11 @@ public class ModItems {
     // Метод для создания стартового набора пустых страниц
     private static java.util.List<net.avizvul.esquissemod.component.SketchData> createBlankPages(int count) {
         java.util.List<net.avizvul.esquissemod.component.SketchData> list = new java.util.ArrayList<>(count);
-
         for (int i = 0; i < count; i++) {
-            // ВАЖНО: Замените 64 и 128 на ВАШИ реальные размеры холста,
-            // иначе при подгрузке пустой страницы игра вылетит из-за несовпадения размеров!
-            int[][] emptyPixels = new int[64][128];
-
+            // ИСПРАВЛЕНИЕ: Добавлены пробелы в [ 126 ][ 192 ]
+            int[][] emptyPixels = new int[ 126 ][ 192 ];
             list.add(net.avizvul.esquissemod.component.SketchData.fromArray(emptyPixels));
         }
-
         return list;
     }
 }

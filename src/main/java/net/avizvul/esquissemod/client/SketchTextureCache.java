@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class SketchTextureCache {
+
     // Кэш на 50 текстур, чтобы видеопамять не переполнялась
     private static final int MAX_CACHE_SIZE = 50;
     private static final Map<Integer, ResourceLocation> CACHE = new LinkedHashMap<>(MAX_CACHE_SIZE + 1, 0.75f, true) {
@@ -29,22 +30,22 @@ public class SketchTextureCache {
 
         int hash = data.hashCode();
         if (CACHE.containsKey(hash)) {
-            return CACHE.get(hash); // Если текстура уже сгенерирована, возвращаем её
+            return CACHE.get(hash);
         }
 
         int[][] pixels = data.getRawPixels();
         int width = pixels.length;
         if (width == 0) return null;
 
-        // ИСПРАВЛЕНИЕ: Берем pixels.length для правильной высоты (192 вместо 126)
-        int height = pixels[0].length;
+        // ИСПРАВЛЕНИЕ: Добавлены пробелы в [ 0 ]
+        int height = pixels[ 0 ].length;
 
         NativeImage image = new NativeImage(width, height, true);
+
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 int argb = pixels[x][y];
                 if (argb != 0) {
-                    // Переводим ARGB в ABGR (формат, который требует NativeImage)
                     int a = (argb >> 24) & 0xFF;
                     int r = (argb >> 16) & 0xFF;
                     int g = (argb >> 8) & 0xFF;
@@ -55,11 +56,9 @@ public class SketchTextureCache {
         }
 
         DynamicTexture texture = new DynamicTexture(image);
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("esquissemod", "sketch_cache_" + Math.abs(hash));
 
-        // ИСПРАВЛЕНИЕ: Используем встроенный генератор ID Майнкрафта
-        // Он создаст безопасный путь вида minecraft:dynamic/sketch_cache_...
-        ResourceLocation id = Minecraft.getInstance().getTextureManager().register("sketch_cache", texture);
-
+        Minecraft.getInstance().getTextureManager().register(id, texture);
         CACHE.put(hash, id);
         return id;
     }

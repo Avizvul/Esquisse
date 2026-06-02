@@ -509,8 +509,9 @@ public class SketchbookScreen extends Screen {
         int forwardTabY = coords.forwardTabY();
 
         double[] logicalMouse = getLogicalMouse(mouseX, mouseY);
-        double lMouseX = logicalMouse[0];
-        double lMouseY = logicalMouse[1];
+        // ИСПРАВЛЕНИЕ: Пробелы для парсера
+        double lMouseX = logicalMouse[ 0 ];
+        double lMouseY = logicalMouse[ 1 ];
 
         if (this.currentPageIndex > 0) {
             boolean backHovered = !this.isDragging && !this.isRotating && lMouseX >= tabX && lMouseX < tabX + scaledTabWidth && lMouseY >= backTabY && lMouseY < backTabY + scaledTabHeight;
@@ -586,10 +587,11 @@ public class SketchbookScreen extends Screen {
             if (canDraw) {
                 double physicalCellSize = (double) this.scale / this.resolutionMultiplier;
                 double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
-                double[] lMouseMagnet = getLogicalMouse(magnetMouse[0], magnetMouse[1]);
+                // ИСПРАВЛЕНИЕ: Пробелы для парсера
+                double[] lMouseMagnet = getLogicalMouse(magnetMouse[ 0 ], magnetMouse[ 1 ]);
 
-                int centerX = (int) ((lMouseMagnet[0] - canvasScreenLeft) / physicalCellSize);
-                int centerY = (int) ((lMouseMagnet[1] - renderY) / physicalCellSize);
+                int centerX = (int) ((lMouseMagnet[ 0 ] - canvasScreenLeft) / physicalCellSize);
+                int centerY = (int) ((lMouseMagnet[ 1 ] - renderY) / physicalCellSize);
 
                 int currentBrushSize = getBrushSize();
                 int actualSize = currentBrushSize;
@@ -611,11 +613,10 @@ public class SketchbookScreen extends Screen {
                 }
 
                 int markerRot = isMarker ? getMarkerRotation() : 0;
-                double angleRad = Math.toRadians(markerRot * 45.0);
+                double angleRad = Math.toRadians(markerRot * 15.0);
                 double mCos = Math.cos(angleRad);
                 double mSin = Math.sin(angleRad);
 
-                // Предпросмотр маркера (геометрия 2x4, 3x6, 4x8)
                 double thickness = currentBrushSize + 1.0;
                 double length = currentBrushSize * 5.0;
 
@@ -693,7 +694,7 @@ public class SketchbookScreen extends Screen {
         }
         guiGraphics.pose().popPose();
 
-        // --- 9. ИНСТРУМЕНТЫ И ИНДИКАТОРЫ ---
+        // --- ИНСТРУМЕНТЫ И ИНДИКАТОРЫ ---
         ToolButtonCoords toolCoords = getToolButtonCoords();
         int scaledBtnWidth = toolCoords.scaledBtnWidth();
         int scaledBtnHeight = toolCoords.scaledBtnHeight();
@@ -720,15 +721,12 @@ public class SketchbookScreen extends Screen {
             renderToolButton(guiGraphics, mouseX, mouseY, false, MAGGLASS_BTN_TEX, toolCoords.magGlassX());
         }
 
+        // ИСПРАВЛЕНИЕ: Убрано ошибочное двойное рисование кнопки циркуля. Теперь она рисуется ТОЛЬКО когда он в тулбаре!
         boolean hasCompass = hasTool(ModItems.DRAWING_COMPASS.get());
         if (hasCompass && this.compassState == CompassState.INACTIVE) {
             renderToolButton(guiGraphics, mouseX, mouseY, false, COMPASS_BTN_TEX, toolCoords.compassX());
         }
-        if (hasCompass) {
-            renderToolButton(guiGraphics, mouseX, mouseY, this.compassState != CompassState.INACTIVE, COMPASS_BTN_TEX, toolCoords.compassX());
-        }
 
-        // ИСПРАВЛЕНИЕ: Индикаторы размера и палитра рисуются И для Карандаша, И для Маркера
         if (this.activeTool == Tool.PENCIL && hasPencil) {
             renderSizeIndicators(guiGraphics, mouseX, mouseY, toolCoords.pencilX(), peekY);
         } else if ((this.activeTool == Tool.COLOR_PENCIL && hasColorPencil) || (this.activeTool == Tool.COLOR_MARKER && hasColorMarker)) {
@@ -752,7 +750,6 @@ public class SketchbookScreen extends Screen {
             renderSizeIndicators(guiGraphics, mouseX, mouseY, toolCoords.smudgeX(), peekY);
         }
 
-        // Вывод жесткости (Для маркера мы этот текст убираем, так как она не меняется)
         if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors) ||
                 (this.activeTool == Tool.SMUDGE && hasSmudge) || (this.activeTool == Tool.KNEADED_ERASER && hasKneaded)) {
 
@@ -1039,7 +1036,6 @@ public class SketchbookScreen extends Screen {
         int centerX = (int) ((lMouseX - canvasScreenLeft) / physicalCellSize);
         int centerY = (int) ((lMouseY - canvasScreenTop) / physicalCellSize);
 
-        // --- Вычисляем вектор сдвига для растушевки ---
         int shiftX = 0, shiftY = 0;
         if (this.lastLogicalX != -1 && this.lastLogicalY != -1) {
             int lastCX = (int) ((this.lastLogicalX - canvasScreenLeft) / physicalCellSize);
@@ -1048,7 +1044,6 @@ public class SketchbookScreen extends Screen {
             shiftY = centerY - lastCY;
         }
 
-        // --- УНИКАЛЬНЫЕ РАЗМЕРЫ ДЛЯ ИНСТРУМЕНТОВ ---
         int currentBrushSize = getBrushSize();
         int currentToolHardness = getHardness();
         int actualSize = currentBrushSize;
@@ -1063,21 +1058,17 @@ public class SketchbookScreen extends Screen {
         double exactCX = centerX + (actualSize % 2 == 0 ? -0.5 : 0.0);
         double exactCY = centerY + (actualSize % 2 == 0 ? -0.5 : 0.0);
 
-        // --- НОВАЯ МАТЕМАТИКА ДЛЯ МАРКЕРА ---
         boolean isMarker = (this.activeTool == Tool.COLOR_MARKER);
         if (isMarker) {
-            // Сдвигаем центр на половину пикселя, чтобы не было искажений четных сторон
             exactCX = centerX + 0.5;
             exactCY = centerY + 0.5;
         }
 
         int markerRot = isMarker ? getMarkerRotation() : 0;
-        double angleRad = Math.toRadians(markerRot * 45.0);
+        double angleRad = Math.toRadians(markerRot * 15.0);
         double mCos = Math.cos(angleRad);
         double mSin = Math.sin(angleRad);
 
-        // === ИЗМЕРЕНИЯ КИСТИ МАРКЕРА УКАЗЫВАЮТСЯ ЗДЕСЬ ===
-        // Размеры 2x5, 3x10 и 4x15
         double thickness = currentBrushSize + 1.0;
         double length = currentBrushSize * 5.0;
 
@@ -1096,13 +1087,10 @@ public class SketchbookScreen extends Screen {
                 double distance = Math.sqrt(dx * dx + dy * dy);
 
                 if (isMarker) {
-                    // Поворачиваем координату вокруг центра кисти
                     double localX = dx * mCos + dy * mSin;
                     double localY = -dx * mSin + dy * mCos;
-                    // Ограничитель строго по размерам (>= исключает лишние пиксели по краям)
                     if (Math.abs(localX) >= length / 2.0 || Math.abs(localY) >= thickness / 2.0) continue;
                 } else {
-                    // Отсекаем углы (делаем круг) для растушевки и клячки
                     if ((this.activeTool == Tool.SMUDGE || this.activeTool == Tool.KNEADED_ERASER) && distance > radius) continue;
                 }
 
@@ -1116,10 +1104,9 @@ public class SketchbookScreen extends Screen {
                     } else {
                         if (this.strokePixels == null) this.strokePixels = new boolean[this.canvasWidth * this.resolutionMultiplier][this.canvasHeight * this.resolutionMultiplier];
 
-                        // Растушевка игнорирует блокировку штриха
-                        if (this.strokePixels[x][y] && this.activeTool != Tool.SMUDGE) continue;
+                        // ИСПРАВЛЕНИЕ: Клячка теперь тоже игнорирует блокировку штриха, как и растушевка!
+                        if (this.strokePixels[x][y] && this.activeTool != Tool.SMUDGE && this.activeTool != Tool.KNEADED_ERASER) continue;
 
-                        // --- ЛОГИКА КЛЯЧКИ (KNEADED ERASER) ---
                         if (this.activeTool == Tool.KNEADED_ERASER) {
                             int currentColor = pixels[x][y];
                             if (currentColor != 0) {
@@ -1143,13 +1130,11 @@ public class SketchbookScreen extends Screen {
                                     this.strokePixels[x][y] = true;
                                 }
                             }
-                        }
-                        // --- ЛОГИКА РАСТУШЕВКИ (SMUDGE) ---
-                        else if (this.activeTool == Tool.SMUDGE) {
-                            float shiftRate = (currentToolHardness == 1) ? 0.4f : (currentToolHardness == 2) ? 0.7f : 0.95f;
-                            float mixRate = (currentToolHardness == 1) ? 0.65f : (currentToolHardness == 2) ? 0.35f : 0.15f;
+                        } else if (this.activeTool == Tool.SMUDGE) {
+                            float shiftRate = (currentToolHardness == 1) ? 0.4f : (currentToolHardness == 2) ? 0.52f : 0.86f;
+                            float mixRate = (currentToolHardness == 1) ? 0.65f : (currentToolHardness == 2) ? 0.41f : 0.17f;
                             float falloff = 1.0f;
-                            float brushHardness = (currentToolHardness == 1) ? 0.6f : (currentToolHardness == 2) ? 0.85f : 1.0f;
+                            float brushHardness = (currentToolHardness == 1) ? 0.4f : (currentToolHardness == 2) ? 0.59f : 0.89f;
                             double softRadius = radius * brushHardness;
 
                             if (distance > softRadius && radius > softRadius) falloff = (float) (1.0 - (distance - softRadius) / (radius - softRadius));
@@ -1173,9 +1158,7 @@ public class SketchbookScreen extends Screen {
                                 this.isCanvasDirty = true;
                                 this.strokePixels[x][y] = true;
                             }
-                        }
-                        // --- ЛОГИКА ОБЫЧНЫХ КАРАНДАШЕЙ И ЦВЕТНОГО МАРКЕРА ---
-                        else {
+                        } else {
                             int brushRgb = 0x111111;
                             net.minecraft.world.item.ItemStack activeColorStack = (this.activeTool == Tool.COLOR_MARKER) ? getColorMarkerStack() : getColorPencilStack();
 
@@ -1187,8 +1170,8 @@ public class SketchbookScreen extends Screen {
                                 }
                             }
 
-                            // Полупрозрачность маркера выставлена на 100 из 255 (около 40%)
-                            int alpha = (this.activeTool == Tool.COLOR_MARKER) ? 100 : ((currentToolHardness == 1) ? 64 : (currentToolHardness == 2) ? 128 : 255);
+                            // ИСПРАВЛЕНИЕ: Полупрозрачность маркера теперь 76 (это 30% от 255)
+                            int alpha = (this.activeTool == Tool.COLOR_MARKER) ? 76 : ((currentToolHardness == 1) ? 64 : (currentToolHardness == 2) ? 128 : 255);
                             int newColorArgb = (alpha << 24) | (brushRgb & 0xFFFFFF);
                             int blendedColor = net.avizvul.esquissemod.util.ColorUtils.blendColors(pixels[x][y], newColorArgb);
 
@@ -1608,8 +1591,8 @@ public class SketchbookScreen extends Screen {
                 return true;
             } else if (this.activeTool == Tool.COLOR_MARKER && hasTool(ModItems.COLOR_MARKER.get())) {
                 int r = getMarkerRotation();
-                if (scrollY > 0) r = (r + 1) % 4; // 4 угла: 0, 45, 90, 135 градусов
-                else if (scrollY < 0) r = (r - 1 + 4) % 4;
+                if (scrollY > 0) r = (r + 1) % 12; // 12 углов по 15 градусов (180 градусов суммарно)
+                else if (scrollY < 0) r = (r - 1 + 12) % 12;
                 setToolSettings(getBrushSize(), getHardness(), r);
                 return true;
             }
