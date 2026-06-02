@@ -750,7 +750,9 @@ public class SketchbookScreen extends Screen {
             renderSizeIndicators(guiGraphics, mouseX, mouseY, toolCoords.smudgeX(), peekY);
         }
 
+        // Вывод жесткости и прозрачности
         if ((this.activeTool == Tool.PENCIL && hasPencil) || (this.activeTool == Tool.COLOR_PENCIL && hasColors) ||
+                (this.activeTool == Tool.COLOR_MARKER && hasColorMarker && hasColors) || // ДОБАВЛЕН МАРКЕР
                 (this.activeTool == Tool.SMUDGE && hasSmudge) || (this.activeTool == Tool.KNEADED_ERASER && hasKneaded)) {
 
             int currentToolHardness = getHardness();
@@ -758,12 +760,15 @@ public class SketchbookScreen extends Screen {
 
             if (this.activeTool == Tool.SMUDGE || this.activeTool == Tool.KNEADED_ERASER) {
                 hardnessText = (currentToolHardness == 1) ? "S" : (currentToolHardness == 2) ? "M" : "H";
+            } else if (this.activeTool == Tool.COLOR_MARKER) {
+                hardnessText = (currentToolHardness == 1) ? "L" : (currentToolHardness == 2) ? "M" : "H"; // ТЕКСТ МАРКЕРА
             }
 
             int hardnessColor = (currentToolHardness == 1) ? 0xFFAAAAAA : (currentToolHardness == 2) ? 0xFF555555 : 0xFF222222;
             int activeX = (this.activeTool == Tool.PENCIL) ? toolCoords.pencilX() :
                     (this.activeTool == Tool.SMUDGE) ? toolCoords.smudgeX() :
-                    (this.activeTool == Tool.KNEADED_ERASER) ? toolCoords.kneadedX() : toolCoords.colorPencilX();
+                    (this.activeTool == Tool.KNEADED_ERASER) ? toolCoords.kneadedX() :
+                    (this.activeTool == Tool.COLOR_MARKER) ? toolCoords.colorMarkerX() : toolCoords.colorPencilX(); // КООРДИНАТЫ МАРКЕРА
 
             int hX = activeX + (scaledBtnWidth / 2) - (this.font.width(hardnessText) / 2);
             guiGraphics.drawString(this.font, hardnessText, hX, peekY - 24, hardnessColor, false);
@@ -1170,17 +1175,15 @@ public class SketchbookScreen extends Screen {
                                 }
                             }
 
-                            // ИСПРАВЛЕНИЕ: Полупрозрачность маркера теперь 76 (это 30% от 255)
-                            int alpha = (this.activeTool == Tool.COLOR_MARKER) ? 76 : ((currentToolHardness == 1) ? 64 : (currentToolHardness == 2) ? 128 : 255);
-                            int newColorArgb = (alpha << 24) | (brushRgb & 0xFFFFFF);
-                            int blendedColor = net.avizvul.esquissemod.util.ColorUtils.blendColors(pixels[x][y], newColorArgb);
-
-                            if (pixels[x][y] != blendedColor) {
-                                this.isCanvasDirty = true;
-                                pixels[x][y] = blendedColor;
-                                this.pencilPixelsUsed++;
-                                this.strokePixels[x][y] = true;
+                            // ИСПРАВЛЕНИЕ: Динамическая прозрачность маркера (L = 30%, M = 60%, H = 100%)
+                            int alpha;
+                            if (this.activeTool == Tool.COLOR_MARKER) {
+                                alpha = (currentToolHardness == 1) ? 76 : ((currentToolHardness == 2) ? 153 : 255);
+                            } else {
+                                alpha = (currentToolHardness == 1) ? 64 : ((currentToolHardness == 2) ? 128 : 255);
                             }
+
+                            int newColorArgb = (alpha << 24) | (brushRgb & 0xFFFFFF);
                         }
                     }
                 }
@@ -1467,15 +1470,16 @@ public class SketchbookScreen extends Screen {
             }
 
             // 3. Изменение твердости карандаша (Правый клик по инструментам)
-            // Маркер пропускаем, так как твердость у него не меняется
             boolean clickedPencil = hasPencil && mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
             boolean clickedColorPencil = hasColorPencil && hasColors && mouseX >= colorPencilX && mouseX < colorPencilX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
+            boolean clickedColorMarker = hasColorMarker && hasColors && mouseX >= colorMarkerX && mouseX < colorMarkerX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight; // ДОБАВЛЕНО
             boolean clickedSmudge = hasSmudge && mouseX >= smudgeX && mouseX < smudgeX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
             boolean clickedKneaded = hasKneaded && mouseX >= kneadedX && mouseX < kneadedX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
 
-            if (clickedPencil || clickedColorPencil || clickedSmudge || clickedKneaded) {
+            if (clickedPencil || clickedColorPencil || clickedColorMarker || clickedSmudge || clickedKneaded) {
                 if (clickedPencil) this.activeTool = Tool.PENCIL;
                 else if (clickedColorPencil) this.activeTool = Tool.COLOR_PENCIL;
+                else if (clickedColorMarker) this.activeTool = Tool.COLOR_MARKER;
                 else if (clickedSmudge) this.activeTool = Tool.SMUDGE;
                 else if (clickedKneaded) this.activeTool = Tool.KNEADED_ERASER;
 
@@ -1575,34 +1579,40 @@ public class SketchbookScreen extends Screen {
         ItemStack colorPencilStack = getColorPencilStack();
         boolean hasColorPencil = !colorPencilStack.isEmpty();
         boolean hasColors = hasColorPencil && !colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>()).isEmpty();
+        // Узнаем, заправлен ли маркер
+        boolean hasMarkerColors = hasTool(ModItems.COLOR_MARKER.get()) && !getColorMarkerStack().getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>()).isEmpty();
 
-        // Проверяем, зажат ли Shift (для изменения нажима/жесткости)
-        if (Screen.hasShiftDown()) {
-            if ((this.activeTool == Tool.PENCIL && hasTool(ModItems.PENCIL.get())) ||
-                    (this.activeTool == Tool.COLOR_PENCIL && hasColors) ||
-                    (this.activeTool == Tool.SMUDGE && hasTool(ModItems.SMUDGE.get())) ||
-                    (this.activeTool == Tool.KNEADED_ERASER && hasTool(ModItems.KNEADED_ERASER.get()))) { // <-- ДОБАВЛЕНА КЛЯЧКА ЗДЕСЬ
-
-                int h = getHardness();
-                if (scrollY > 0) h = Math.min(3, h + 1);
-                else if (scrollY < 0) h = Math.max(1, h - 1);
-
-                setToolSettings(getBrushSize(), h);
-                return true;
-            } else if (this.activeTool == Tool.COLOR_MARKER && hasTool(ModItems.COLOR_MARKER.get())) {
+        // 1. Вращение маркера на Alt + Колесико
+        if (net.minecraft.client.gui.screens.Screen.hasAltDown()) {
+            if (this.activeTool == Tool.COLOR_MARKER && hasTool(ModItems.COLOR_MARKER.get())) {
                 int r = getMarkerRotation();
-                if (scrollY > 0) r = (r + 1) % 12; // 12 углов по 15 градусов (180 градусов суммарно)
+                if (scrollY > 0) r = (r + 1) % 12; // 12 углов по 15 градусов
                 else if (scrollY < 0) r = (r - 1 + 12) % 12;
                 setToolSettings(getBrushSize(), getHardness(), r);
                 return true;
             }
-        } else {
-            // Без Shift меняем размер кисти
+        }
+        // 2. Смена нажима (прозрачности) на Shift + Колесико
+        else if (net.minecraft.client.gui.screens.Screen.hasShiftDown()) {
+            if ((this.activeTool == Tool.PENCIL && hasTool(ModItems.PENCIL.get())) ||
+                    (this.activeTool == Tool.COLOR_PENCIL && hasColors) ||
+                    (this.activeTool == Tool.SMUDGE && hasTool(ModItems.SMUDGE.get())) ||
+                    (this.activeTool == Tool.KNEADED_ERASER && hasTool(ModItems.KNEADED_ERASER.get())) ||
+                    (this.activeTool == Tool.COLOR_MARKER && hasMarkerColors)) { // Маркер добавлен сюда
+
+                int h = getHardness();
+                if (scrollY > 0) h = Math.min(3, h + 1);
+                else if (scrollY < 0) h = Math.max(1, h - 1);
+                setToolSettings(getBrushSize(), h, getMarkerRotation());
+                return true;
+            }
+        }
+        // 3. Изменение размера кисти (Без шифта и альта)
+        else {
             int s = getBrushSize();
             if (scrollY > 0) s = Math.min(3, s + 1);
             else if (scrollY < 0) s = Math.max(1, s - 1);
-
-            setToolSettings(s, getHardness());
+            setToolSettings(s, getHardness(), getMarkerRotation());
             return true;
         }
 
