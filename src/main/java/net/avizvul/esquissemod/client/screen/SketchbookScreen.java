@@ -685,8 +685,8 @@ public class SketchbookScreen extends Screen {
         }
 
         boolean hasCompass = hasTool(ModItems.DRAWING_COMPASS.get());
-        if (!hasCompass && this.compassState != CompassState.INACTIVE) {
-            this.compassState = CompassState.INACTIVE; // Отключаем, если пропал
+        if (hasCompass && this.compassState == CompassState.INACTIVE) {
+            renderToolButton(guiGraphics, mouseX, mouseY, false, COMPASS_BTN_TEX, toolCoords.compassX());
         }
         if (hasCompass) {
             renderToolButton(guiGraphics, mouseX, mouseY, this.compassState != CompassState.INACTIVE, COMPASS_BTN_TEX, toolCoords.compassX());
@@ -1174,7 +1174,7 @@ public class SketchbookScreen extends Screen {
         int kneadedX = toolCoords.kneadedX();
         int rulerX = toolCoords.rulerX();
         int magGlassX = toolCoords.magGlassX();
-        int compassX = toolCoords.compassX(); // ДОБАВЛЕНО
+        int compassX = toolCoords.compassX();
         int peekY = toolCoords.peekY();
 
         if (button == 1 && this.isMagnifierLocked) {
@@ -1186,6 +1186,7 @@ public class SketchbookScreen extends Screen {
             double dx = mouseX - this.rulerX;
             double dy = mouseY - this.rulerY;
             double rad = Math.toRadians(-this.rulerAngle);
+
             double localX = dx * Math.cos(rad) - dy * Math.sin(rad);
             double localY = dx * Math.sin(rad) + dy * Math.cos(rad);
 
@@ -1212,7 +1213,7 @@ public class SketchbookScreen extends Screen {
             int colorPencilY = (this.activeTool == Tool.COLOR_PENCIL) ? peekY : baseY;
             int eraserY = (this.activeTool == Tool.ERASER) ? peekY : baseY;
             int smudgeY = (this.activeTool == Tool.SMUDGE) ? peekY : baseY;
-            int kneadedY = (this.activeTool == Tool.KNEADED_ERASER) ? peekY : baseY; // ДОБАВЛЕНО
+            int kneadedY = (this.activeTool == Tool.KNEADED_ERASER) ? peekY : baseY;
 
             // 1. Выбор инструментов
             if (hasPencil && mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth && mouseY >= pencilY && mouseY < pencilY + scaledBtnHeight) {
@@ -1227,7 +1228,6 @@ public class SketchbookScreen extends Screen {
             if (hasSmudge && mouseX >= smudgeX && mouseX < smudgeX + scaledBtnWidth && mouseY >= smudgeY && mouseY < smudgeY + scaledBtnHeight) {
                 this.activeTool = Tool.SMUDGE; return true;
             }
-            // ДОБАВЛЕНО: Выбор клячки
             if (hasKneaded && mouseX >= kneadedX && mouseX < kneadedX + scaledBtnWidth && mouseY >= kneadedY && mouseY < kneadedY + scaledBtnHeight) {
                 this.activeTool = Tool.KNEADED_ERASER; return true;
             }
@@ -1238,16 +1238,13 @@ public class SketchbookScreen extends Screen {
             if (hasMagGlass && !this.isMagnifierLocked && mouseX >= magGlassX && mouseX < magGlassX + scaledBtnWidth && mouseY >= baseY && mouseY < baseY + scaledBtnHeight) {
                 this.isMagnifierLocked = true; return true;
             }
-            // --- Активация/Деактивация компаса на ЛКМ ---
-            int compassY = (this.compassState != CompassState.INACTIVE) ? peekY : baseY;
-            if (hasCompass && mouseX >= compassX && mouseX < compassX + scaledBtnWidth && mouseY >= compassY && mouseY < compassY + scaledBtnHeight) {
-                if (this.compassState == CompassState.INACTIVE) {
-                    this.compassState = CompassState.FOLDED;
-                } else {
-                    this.compassState = CompassState.INACTIVE;
-                }
+
+            // --- Активация компаса на ЛКМ ---
+            if (hasCompass && this.compassState == CompassState.INACTIVE && mouseX >= compassX && mouseX < compassX + scaledBtnWidth && mouseY >= baseY && mouseY < baseY + scaledBtnHeight) {
+                this.compassState = CompassState.FOLDED;
                 return true;
             }
+
             // 2. Индикаторы размера кисти и палитра
             if (this.activeTool == Tool.PENCIL && hasPencil) {
                 if (handleSizeIndicatorClick(mouseX, mouseY, pencilX, peekY)) return true;
@@ -1256,6 +1253,7 @@ public class SketchbookScreen extends Screen {
 
                 int swatchSize = 12;
                 java.util.List<Integer> colors = colorPencilStack.getOrDefault(ModDataComponents.STORED_COLORS.get(), new java.util.ArrayList<>());
+
                 for (Swatch swatch : getPaletteLayout()) {
                     if (mouseX >= swatch.x() && mouseX <= swatch.x() + swatchSize && mouseY >= swatch.y() && mouseY <= swatch.y() + swatchSize) {
                         int foundIndex = colors.indexOf(swatch.colorId());
@@ -1270,13 +1268,14 @@ public class SketchbookScreen extends Screen {
                 if (handleSizeIndicatorClick(mouseX, mouseY, eraserX, peekY)) return true;
             } else if (this.activeTool == Tool.SMUDGE && hasSmudge) {
                 if (handleSizeIndicatorClick(mouseX, mouseY, smudgeX, peekY)) return true;
-            } else if (this.activeTool == Tool.KNEADED_ERASER && hasKneaded) { // ДОБАВЛЕНО
+            } else if (this.activeTool == Tool.KNEADED_ERASER && hasKneaded) {
                 if (handleSizeIndicatorClick(mouseX, mouseY, kneadedX, peekY)) return true;
             }
 
             double[] logicalMouse = getLogicalMouse(mouseX, mouseY);
             double lMouseX = logicalMouse[0];
             double lMouseY = logicalMouse[1];
+
             int renderX = (int) this.exactGuiLeft;
             int renderY = (int) this.exactGuiTop;
 
@@ -1284,18 +1283,22 @@ public class SketchbookScreen extends Screen {
             int btnFileHeight = 8;
             int btnX = renderX;
             int btnY = renderY + ((this.fileHeight - btnFileHeight) / 2) * this.scale;
+
             if (lMouseX >= btnX && lMouseX < btnX + (btnFileWidth * this.scale) && lMouseY >= btnY && lMouseY < btnY + (btnFileHeight * this.scale)) {
                 this.isRotating = true; return true;
             }
 
             int drawWidth = this.fileWidth * this.scale;
             TabCoords coords = getTabCoords(renderX, renderY, drawWidth);
+
             net.minecraft.world.item.ItemStack stack = this.minecraft.player.getMainHandItem();
             if (!stack.is(ModItems.SKETCHBOOK.get())) stack = this.minecraft.player.getOffhandItem();
+
             java.util.List<net.avizvul.esquissemod.component.SketchData> pages = new java.util.ArrayList<>(stack.getOrDefault(ModDataComponents.SKETCHBOOK_PAGES.get(), new java.util.ArrayList<>()));
 
             int scaledTabWidth = this.tabWidth * this.tabScale;
             int scaledTabHeight = this.tabHeight * this.tabScale;
+
             if (this.currentPageIndex > 0 && lMouseX >= coords.tabX() && lMouseX < coords.tabX() + scaledTabWidth && lMouseY >= coords.backTabY() && lMouseY < coords.backTabY() + scaledTabHeight) {
                 turnPage(this.currentPageIndex - 1); return true;
             }
@@ -1313,7 +1316,8 @@ public class SketchbookScreen extends Screen {
                 int scaledCanvasWidth = this.canvasWidth * this.scale;
 
                 if (lMouseX >= canvasScreenLeft && lMouseX < (canvasScreenLeft + scaledCanvasWidth) && lMouseY >= renderY && lMouseY < (renderY + scaledImageHeight)) {
-                    // --- ИСПРАВЛЕНИЕ 1, 2: Установка якоря и блокировка радиуса ---
+
+                    // --- Установка якоря и блокировка радиуса для компаса ---
                     if (this.compassState == CompassState.FOLDED) {
                         this.compassAnchorX = lMouseX;
                         this.compassAnchorY = lMouseY;
@@ -1326,6 +1330,7 @@ public class SketchbookScreen extends Screen {
                         if (dist > 192.0) dist = 192.0;
                         this.compassRadius = dist;
                         this.compassState = CompassState.LOCKED;
+                        // Отсутствие return true позволяет моментально нарисовать пиксель первого касания
                     }
 
                     double[] magnetMouse = applyRulerMagnet(mouseX, mouseY);
@@ -1359,6 +1364,7 @@ public class SketchbookScreen extends Screen {
             double[] logicalMouse = getLogicalMouse(mouseX, mouseY);
             double lMouseX = logicalMouse[0];
             double lMouseY = logicalMouse[1];
+
             int renderX = (int) this.exactGuiLeft;
             int renderY = (int) this.exactGuiTop;
 
@@ -1366,6 +1372,7 @@ public class SketchbookScreen extends Screen {
             int btnFileHeight = 8;
             int btnX = renderX;
             int btnY = renderY + ((this.fileHeight - btnFileHeight) / 2) * this.scale;
+
             if (lMouseX >= btnX && lMouseX < btnX + (btnFileWidth * this.scale) && lMouseY >= btnY && lMouseY < btnY + (btnFileHeight * this.scale)) {
                 this.rotationAngle = 0.0f;
                 clampSketchbook();
@@ -1383,9 +1390,10 @@ public class SketchbookScreen extends Screen {
 
                 net.minecraft.world.item.ItemStack stack = this.minecraft.player.getMainHandItem();
                 if (!stack.is(ModItems.SKETCHBOOK.get())) stack = this.minecraft.player.getOffhandItem();
-                java.util.List<net.avizvul.esquissemod.component.SketchData> pages = new java.util.ArrayList<>(stack.getOrDefault(ModDataComponents.SKETCHBOOK_PAGES.get(), new java.util.ArrayList<>()));
 
+                java.util.List<net.avizvul.esquissemod.component.SketchData> pages = new java.util.ArrayList<>(stack.getOrDefault(ModDataComponents.SKETCHBOOK_PAGES.get(), new java.util.ArrayList<>()));
                 pages.remove(this.currentPageIndex);
+
                 if (pages.isEmpty()) {
                     this.onClose();
                 } else {
@@ -1399,17 +1407,17 @@ public class SketchbookScreen extends Screen {
                 return true;
             }
 
-            // 3. Изменение твердости карандаша (L, M, H)
+            // 3. Изменение твердости карандаша
             boolean clickedPencil = hasPencil && mouseX >= pencilX && mouseX < pencilX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
             boolean clickedColorPencil = hasColors && mouseX >= colorPencilX && mouseX < colorPencilX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
             boolean clickedSmudge = hasSmudge && mouseX >= smudgeX && mouseX < smudgeX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
-            boolean clickedKneaded = hasKneaded && mouseX >= kneadedX && mouseX < kneadedX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight; // ДОБАВЛЕНО
+            boolean clickedKneaded = hasKneaded && mouseX >= kneadedX && mouseX < kneadedX + scaledBtnWidth && mouseY >= peekY && mouseY < peekY + scaledBtnHeight;
 
             if (clickedPencil || clickedColorPencil || clickedSmudge || clickedKneaded) {
                 if (clickedPencil) this.activeTool = Tool.PENCIL;
                 else if (clickedColorPencil) this.activeTool = Tool.COLOR_PENCIL;
                 else if (clickedSmudge) this.activeTool = Tool.SMUDGE;
-                else if (clickedKneaded) this.activeTool = Tool.KNEADED_ERASER; // ДОБАВЛЕНО
+                else if (clickedKneaded) this.activeTool = Tool.KNEADED_ERASER;
 
                 int h = getHardness() + 1;
                 if (h > 3) h = 1;
@@ -1423,6 +1431,7 @@ public class SketchbookScreen extends Screen {
                 return true;
             }
 
+            // --- Отмена шагов циркуля и убирание его в тулбар ---
             if (this.compassState != CompassState.INACTIVE) {
                 if (this.compassState == CompassState.LOCKED) {
                     this.compassState = CompassState.ANCHORED;
@@ -1430,13 +1439,15 @@ public class SketchbookScreen extends Screen {
                 } else if (this.compassState == CompassState.ANCHORED) {
                     this.compassState = CompassState.FOLDED;
                     return true;
+                } else if (this.compassState == CompassState.FOLDED) {
+                    this.compassState = CompassState.INACTIVE;
+                    return true;
                 }
             }
         }
 
         return super.mouseClicked(mouseX, mouseY, button);
     }
-
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
@@ -1537,7 +1548,7 @@ public class SketchbookScreen extends Screen {
         boolean hasPencil = hasTool(ModItems.PENCIL.get());
         boolean hasEraser = hasTool(ModItems.ERASER.get());
         boolean hasSmudge = hasTool(ModItems.SMUDGE.get());
-
+        boolean hasKneadedEraser = hasTool(ModItems.KNEADED_ERASER.get());
         // НОВОЕ: Проверяем наличие цветного карандаша (используем уже готовый метод)
         boolean hasColorPencil = !getColorPencilStack().isEmpty();
 
@@ -1602,8 +1613,10 @@ public class SketchbookScreen extends Screen {
         else if (keyCode == GLFW.GLFW_KEY_S && hasSmudge) {
             this.activeTool = Tool.SMUDGE;
             return true;
+        } else if (keyCode == GLFW.GLFW_KEY_W && hasKneadedEraser) {
+            this.activeTool = Tool.KNEADED_ERASER;
+            return true;
         }
-
 
 
         return super.keyPressed(keyCode, scanCode, modifiers);

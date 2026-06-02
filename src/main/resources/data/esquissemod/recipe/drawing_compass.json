@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "tool",
+  "key": {
+    "N": {
+      "item": "minecraft:iron_nugget"
+    },
+    "P": {
+      "item": "esquissemod:pencil"
+    }
+  },
+  "pattern": [
+    " N ",
+    "N N",
+    "P N"
+  ],
+  "result": {
+    "count": 1,
+    "id": "esquissemod:drawing_compass"
+  }
+}

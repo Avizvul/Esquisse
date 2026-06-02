@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 
 public class SketchData {
     private final int[][] pixels;
+    private final int cachedHashCode; // НОВОЕ: сохраняем хэш-код здесь
 
     public static final Codec<SketchData> CODEC = Codec.INT_STREAM.xmap(
             stream -> {
@@ -84,6 +85,8 @@ public class SketchData {
 
     private SketchData(int[][] pixels) {
         this.pixels = pixels;
+        // Считаем этот огромный массив ТОЛЬКО один раз в момент создания страницы:
+        this.cachedHashCode = java.util.Arrays.deepHashCode(this.pixels);
     }
 
     public int[][] getRawPixels() {
@@ -128,11 +131,18 @@ public class SketchData {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
         SketchData that = (SketchData) obj;
+
+        // НОВОЕ: Мгновенная проверка. Если хэши разные, это точно разные рисунки!
+        // Это спасет игру от глубокого перебора массива в 99.9% случаев.
+        if (this.cachedHashCode != that.cachedHashCode) return false;
+
         return java.util.Arrays.deepEquals(this.pixels, that.pixels);
     }
 
     @Override
     public int hashCode() {
-        return java.util.Arrays.deepHashCode(this.pixels);
+        // НОВОЕ: Просто возвращаем посчитанное ранее число, вместо перебора 24 000 пикселей
+        return this.cachedHashCode;
     }
+
 }

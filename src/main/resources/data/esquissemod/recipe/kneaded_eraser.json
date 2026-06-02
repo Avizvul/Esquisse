@@ -1,0 +1,17 @@
+
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "tool",
+  "ingredients": [
+    {
+      "item": "minecraft:clay_ball"
+    },
+    {
+      "item": "esquissemod:eraser"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "esquissemod:kneaded_eraser"
+  }
+}

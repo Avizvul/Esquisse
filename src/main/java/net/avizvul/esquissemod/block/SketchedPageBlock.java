@@ -35,6 +35,26 @@ public class SketchedPageBlock extends Block implements EntityBlock {
         return new SketchedPageBlockEntity(pos, state);
     }
 
+    @Override
+    public boolean canSurvive(BlockState state, net.minecraft.world.level.LevelReader level, BlockPos pos) {
+        // Узнаем, к какой стороне мы прикреплены
+        net.minecraft.core.Direction facing = state.getValue(FACING);
+        // Получаем координаты блока-опоры (позади рисунка)
+        BlockPos attachedPos = pos.relative(facing.getOpposite());
+        // Проверяем, является ли поверхность опоры твердой и подходящей для установки
+        return level.getBlockState(attachedPos).isFaceSturdy(level, attachedPos, facing);
+    }
+
+    @Override
+    public BlockState updateShape(BlockState state, net.minecraft.core.Direction direction, BlockState neighborState, net.minecraft.world.level.LevelAccessor level, BlockPos currentPos, BlockPos neighborPos) {
+        // Если блок больше не может "выжить" на этом месте (опору сломали)
+        if (!state.canSurvive(level, currentPos)) {
+            // Превращаем блок в Воздух (Air). При этом автоматически вызовется ваш метод onRemove!
+            return net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+        }
+        return super.updateShape(state, direction, neighborState, level, currentPos, neighborPos);
+    }
+
     // Клик предметом
     @Override
     protected net.minecraft.world.ItemInteractionResult useItemOn(net.minecraft.world.item.ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hitResult) {

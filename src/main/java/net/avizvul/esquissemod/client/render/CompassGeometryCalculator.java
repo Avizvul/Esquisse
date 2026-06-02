@@ -20,43 +20,52 @@ public class CompassGeometryCalculator {
         RenderSystem.defaultBlendFunc();
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-        // Зазор между креплениями (12 пикселей в масштабе)
         double TOP_GAP = 12.0;
 
-        double dx = pencilX - anchorX;
-        double dy = pencilY - anchorY;
+        // Строго задаем: Карандаш слева, Игла (якорь) справа
+        double leftTipX = pencilX;
+        double leftTipY = pencilY;
+        double rightTipX = anchorX;
+        double rightTipY = anchorY;
+
+        double dx = rightTipX - leftTipX;
+        double dy = rightTipY - leftTipY;
         double distance = Math.sqrt(dx * dx + dy * dy);
 
         double maxRadius = ACTUAL_LEG_LENGTH * 2.0 + TOP_GAP - 0.1;
 
+        // Ограничитель максимального радиуса
         if (distance > maxRadius) {
             dx = (dx / distance) * maxRadius;
             dy = (dy / distance) * maxRadius;
             distance = maxRadius;
-            pencilX = anchorX + dx;
-            pencilY = anchorY + dy;
+            // Игла зафиксирована, подтягиваем карандаш (левую ножку) к якорю
+            leftTipX = rightTipX - dx;
+            leftTipY = rightTipY - dy;
         }
 
+        // Сложенное состояние: держим ножки на расстоянии 5 пикселей
         if (distance < 5.0) {
             if (distance > 0.01) {
                 dx = (dx / distance) * 5.0;
                 dy = (dy / distance) * 5.0;
             } else {
                 dx = 5.0;
-                dy = 0.0;
+                dy = 0.0; // По умолчанию карандаш висит ровно слева от иглы
             }
             distance = 5.0;
-            pencilX = anchorX + dx;
-            pencilY = anchorY + dy;
+            // Якорь (игла) остается ровно на курсоре, карандаш отступает влево
+            leftTipX = rightTipX - dx;
+            leftTipY = rightTipY - dy;
         }
 
+        // Вектор направления от левого к правому кончику
         double dirX = dx / distance;
         double dirY = dy / distance;
 
-        // ИСПРАВЛЕНИЕ: Переворачиваем нормаль, чтобы шарнир оказался "с другой стороны".
-        // Теперь Рисующая ножка физически окажется слева, а Опорная - справа!
-        double nx = -dirY;
-        double ny = dirX;
+        // Нормаль. Всегда направлена "вверх" и "наружу" от линии рисования
+        double nx = dirY;
+        double ny = -dirX;
 
         double halfSpread = (distance - TOP_GAP) / 2.0;
         double height = 0;
@@ -64,35 +73,37 @@ public class CompassGeometryCalculator {
             height = Math.sqrt(ACTUAL_LEG_LENGTH * ACTUAL_LEG_LENGTH - halfSpread * halfSpread);
         }
 
-        double midTipX = anchorX + dx / 2.0;
-        double midTipY = anchorY + dy / 2.0;
+        // Вычисляем центральные точки
+        double midTipX = (leftTipX + rightTipX) / 2.0;
+        double midTipY = (leftTipY + rightTipY) / 2.0;
 
-        double jointX = midTipX + nx * height;
-        double jointY = midTipY + ny * height;
+        double midPivotX = midTipX + nx * height;
+        double midPivotY = midTipY + ny * height;
 
-        double midPivX = jointX - nx * 6.0;
-        double midPivY = jointY - ny * 6.0;
+        // Центр шарнира сдвинут еще на 6 пикселей выше точек крепления
+        double jointX = midPivotX + nx * 6.0;
+        double jointY = midPivotY + ny * 6.0;
 
-        // Точки крепления ложатся идеально на текстуру: Карандаш на левое (5ш), Игла на правое (11ш)
-        double pencilPivotX = midPivX + dirX * (TOP_GAP / 2.0);
-        double pencilPivotY = midPivY + dirY * (TOP_GAP / 2.0);
+        // Разносим точки крепления: левая - карандашу (5ш), правая - игле (11ш)
+        double leftPivotX = midPivotX - dirX * (TOP_GAP / 2.0);
+        double leftPivotY = midPivotY - dirY * (TOP_GAP / 2.0);
 
-        double anchorPivotX = midPivX - dirX * (TOP_GAP / 2.0);
-        double anchorPivotY = midPivY - dirY * (TOP_GAP / 2.0);
+        double rightPivotX = midPivotX + dirX * (TOP_GAP / 2.0);
+        double rightPivotY = midPivotY + dirY * (TOP_GAP / 2.0);
 
-        // Возвращаем целям их законные координаты. Больше никакого скрещивания!
-        float anchorRot = (float) Math.toDegrees(Math.atan2(anchorY - anchorPivotY, anchorX - anchorPivotX)) - 90.0f;
-        float pencilRot = (float) Math.toDegrees(Math.atan2(pencilY - pencilPivotY, pencilX - pencilPivotX)) - 90.0f;
-
-        // Ось поворачивается так, чтобы отверстия на текстуре совпали с креплениями
-        float axisRot = (float) Math.toDegrees(Math.atan2(-dirX, dirY)) - 90.0f;
+        // Углы поворота каждой части
+        float pencilRot = (float) Math.toDegrees(Math.atan2(leftTipY - leftPivotY, leftTipX - leftPivotX)) - 90.0f;
+        float anchorRot = (float) Math.toDegrees(Math.atan2(rightTipY - rightPivotY, rightTipX - rightPivotX)) - 90.0f;
+        float axisRot = (float) Math.toDegrees(Math.atan2(ny, nx)) + 90.0f;
 
         guiGraphics.pose().pushPose();
         guiGraphics.pose().translate(0, 0, 150.0f);
 
-        // Отрисовываем правильные текстуры из правильных точек к правильным целям!
-        renderPart(guiGraphics, ANCHOR_TEX, anchorPivotX, anchorPivotY, anchorRot, 2.0f, 2.0f, 16, 48, 8, 0);
-        renderPart(guiGraphics, PENCIL_TEX, pencilPivotX, pencilPivotY, pencilRot, 2.0f, 2.0f, 16, 48, 8, 0);
+        // Левая сторона (Карандаш)
+        renderPart(guiGraphics, PENCIL_TEX, leftPivotX, leftPivotY, pencilRot, 2.0f, 2.0f, 16, 48, 8, 0);
+        // Правая сторона (Игла)
+        renderPart(guiGraphics, ANCHOR_TEX, rightPivotX, rightPivotY, anchorRot, 2.0f, 2.0f, 16, 48, 8, 0);
+        // Шарнир
         renderPart(guiGraphics, AXIS_TEX, jointX, jointY, axisRot, 2.0f, 2.0f, 16, 16, 8, 8);
 
         guiGraphics.pose().popPose();

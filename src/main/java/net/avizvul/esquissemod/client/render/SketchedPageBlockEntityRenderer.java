@@ -58,7 +58,7 @@ public class SketchedPageBlockEntityRenderer implements BlockEntityRenderer<Sket
 
         // 3. Сдвигаемся к нужной грани.
         // Локальная ось +Z теперь смотрит ВНУТРЬ блока (в стену/пол). Сдвигаем на 0.4375, чтобы прижать бумагу к внутренней поверхности хитбокса.
-        poseStack.translate(0.0f, 0.0f, 0.4375f);
+        poseStack.translate(0.0f, 0.0f, 0.495f);
 
         // 4. Вращение от кликов игрока (ПКМ по блоку)
         poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(blockEntity.getRotation() * 90f));
